@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   User,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +53,9 @@ export function AppHeader({ user }: AppHeaderProps) {
           </NavLink>
           <NavLink href="/routine" icon={<FlaskConical className="w-4 h-4" />}>
             Routine
+          </NavLink>
+          <NavLink href="/timeline" icon={<Clock className="w-4 h-4" />}>
+            Timeline
           </NavLink>
         </nav>
 
