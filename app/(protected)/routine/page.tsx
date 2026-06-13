@@ -1,0 +1,401 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+import {
+  Sun,
+  Moon,
+  Calendar,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  ChevronRight,
+  ShoppingBag,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+interface RoutineStep {
+  order?: number;
+  category: string;
+  title: string;
+  description: string;
+  key_ingredients: string[];
+  avoid_ingredients?: string[];
+  application_tip?: string;
+  frequency?: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  price_tier: string;
+  description: string;
+}
+
+interface RoutineProductMatch {
+  step_type: string;
+  step_index: number;
+  products: { id: string; name: string; brand: string; price_tier: string; description: string }[];
+}
+
+type Tab = "morning" | "evening" | "weekly";
+
+export default function RoutinePage() {
+  const [activeTab, setActiveTab] = useState<Tab>("morning");
+  const [routine, setRoutine] = useState<{
+    id: string;
+    morning_steps: RoutineStep[];
+    evening_steps: RoutineStep[];
+    weekly: RoutineStep[];
+    created_at: string;
+  } | null>(null);
+  const [productMatches, setProductMatches] = useState<RoutineProductMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    loadRoutine();
+  }, []);
+
+  async function loadRoutine() {
+    const supabase = createClient();
+
+    // Get active routine
+    const { data: routineData } = await supabase
+      .from("routines")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (routineData) {
+      setRoutine(routineData);
+
+      // Load matched products
+      const { data: rp } = await supabase
+        .from("routine_products")
+        .select("step_type, step_index, product_id")
+        .eq("routine_id", routineData.id);
+
+      if (rp && rp.length > 0) {
+        const productIds = [...new Set(rp.map((r) => r.product_id))];
+        const { data: products } = await supabase
+          .from("products")
+          .select("id, name, brand, price_tier, description")
+          .in("id", productIds);
+
+        if (products) {
+          // Group by step
+          const grouped: RoutineProductMatch[] = [];
+          const seen = new Set<string>();
+
+          rp.forEach((match) => {
+            const key = `${match.step_type}-${match.step_index}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              grouped.push({
+                step_type: match.step_type,
+                step_index: match.step_index,
+                products: [],
+              });
+            }
+            const group = grouped.find(
+              (g) =>
+                g.step_type === match.step_type &&
+                g.step_index === match.step_index
+            );
+            const product = products.find((p) => p.id === match.product_id);
+            if (group && product) {
+              group.products.push(product);
+            }
+          });
+
+          setProductMatches(grouped);
+        }
+      }
+    }
+
+    setLoading(false);
+  }
+
+  async function generateRoutine() {
+    setGenerating(true);
+
+    try {
+      const response = await fetch("/api/routine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.error || "Failed to generate routine");
+        return;
+      }
+
+      toast.success("New routine generated!");
+      await loadRoutine();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function getProductsForStep(stepType: string, stepIndex: number) {
+    return (
+      productMatches.find(
+        (m) => m.step_type === stepType && m.step_index === stepIndex
+      )?.products || []
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 text-gold animate-spin" />
+      </div>
+    );
+  }
+
+  if (!routine) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center page-transition">
+        <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-6">
+          <Sparkles className="w-10 h-10 text-gold" />
+        </div>
+        <h1 className="text-3xl font-bold mb-3">
+          Your Personalized <span className="text-gradient-gold">Routine</span>
+        </h1>
+        <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+          Generate a tailored AM/PM skincare routine based on your latest skin
+          analysis and profile.
+        </p>
+        <Button
+          onClick={generateRoutine}
+          disabled={generating}
+          className="bg-gold text-charcoal hover:bg-gold-light font-semibold px-8 py-3 glow-gold transition-all duration-300"
+        >
+          {generating ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Generate My Routine
+            </span>
+          )}
+        </Button>
+      </div>
+    );
+  }
+
+  const steps =
+    activeTab === "morning"
+      ? routine.morning_steps
+      : activeTab === "evening"
+      ? routine.evening_steps
+      : routine.weekly;
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-12 page-transition">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">
+            Your <span className="text-gradient-gold">Routine</span>
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Generated{" "}
+            {new Date(routine.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={generateRoutine}
+          disabled={generating}
+          className="border-gold/30 hover:bg-gold/10"
+        >
+          {generating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+          <span className="ml-2 hidden sm:inline">Regenerate</span>
+        </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl mb-8">
+        <TabButton
+          active={activeTab === "morning"}
+          onClick={() => setActiveTab("morning")}
+          icon={<Sun className="w-4 h-4" />}
+          label="Morning"
+        />
+        <TabButton
+          active={activeTab === "evening"}
+          onClick={() => setActiveTab("evening")}
+          icon={<Moon className="w-4 h-4" />}
+          label="Evening"
+        />
+        <TabButton
+          active={activeTab === "weekly"}
+          onClick={() => setActiveTab("weekly")}
+          icon={<Calendar className="w-4 h-4" />}
+          label="Weekly"
+        />
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-4">
+        {(steps as RoutineStep[]).map((step, i) => {
+          const matchedProducts = getProductsForStep(activeTab, i);
+
+          return (
+            <div
+              key={i}
+              className="p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/20 transition-colors"
+            >
+              <div className="flex items-start gap-4">
+                {/* Step number */}
+                <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold font-semibold text-sm shrink-0 mt-0.5">
+                  {step.order || i + 1}
+                </div>
+
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold">{step.title}</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground capitalize">
+                      {step.category}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {step.description}
+                  </p>
+
+                  {/* Key ingredients */}
+                  {step.key_ingredients && step.key_ingredients.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {step.key_ingredients.map((ing, j) => (
+                        <span
+                          key={j}
+                          className="text-xs px-2 py-0.5 rounded-full border border-gold/20 text-gold bg-gold/5"
+                        >
+                          {ing}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Application tip */}
+                  {step.application_tip && (
+                    <p className="text-xs text-muted-foreground/70 italic">
+                      Tip: {step.application_tip}
+                    </p>
+                  )}
+
+                  {/* Frequency for weekly */}
+                  {step.frequency && (
+                    <p className="text-xs text-gold mt-1">
+                      {step.frequency}
+                    </p>
+                  )}
+
+                  {/* Product recommendations */}
+                  {matchedProducts.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/30">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        <ShoppingBag className="w-3 h-3" />
+                        Recommended Products
+                      </p>
+                      <div className="space-y-2">
+                        {matchedProducts.map((product) => (
+                          <div
+                            key={product.id}
+                            className="flex items-center justify-between p-2 rounded-lg bg-secondary/30"
+                          >
+                            <div>
+                              <p className="text-sm font-medium">
+                                {product.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {product.brand}
+                              </p>
+                            </div>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full ${
+                                product.price_tier === "luxury"
+                                  ? "bg-gold/10 text-gold"
+                                  : product.price_tier === "mid-range"
+                                  ? "bg-blue-500/10 text-blue-400"
+                                  : "bg-green-500/10 text-green-400"
+                              }`}
+                            >
+                              {product.price_tier}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* CTA */}
+      <div className="mt-8 p-6 rounded-2xl border border-border/50 bg-card/50 text-center">
+        <p className="text-sm text-muted-foreground mb-3">
+          Follow this routine for a week, then let us know how your skin
+          feels.
+        </p>
+        <Link
+          href="/capture"
+          className="inline-flex items-center gap-2 text-sm text-gold hover:underline font-medium"
+        >
+          Track your progress with a new selfie
+          <ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+        active
+          ? "bg-gold text-charcoal shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
