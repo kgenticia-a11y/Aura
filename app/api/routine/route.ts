@@ -5,9 +5,25 @@ import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
+interface FeedbackHistory {
+  overall_rating: number;
+  skin_feel: string[];
+  what_improved: string | null;
+  what_worsened: string | null;
+}
+
+interface AnalysisHistory {
+  health_score: number;
+  skin_type: string;
+  hydration_level: string;
+  created_at: string;
+}
+
 function buildRoutinePrompt(
   analysis: Record<string, unknown>,
-  skinProfile: Record<string, unknown> | null
+  skinProfile: Record<string, unknown> | null,
+  pastFeedback?: FeedbackHistory[],
+  pastAnalyses?: AnalysisHistory[]
 ) {
   const allergies =
     (skinProfile?.allergies as string[])?.join(", ") || "none reported";
@@ -34,12 +50,37 @@ USER PROFILE:
 - Water intake: ${lifestyle?.water || "unknown"}
 - Sun exposure: ${lifestyle?.sunExposure || "unknown"}
 
+PAST FEEDBACK (learn from this):
+${
+  pastFeedback && pastFeedback.length > 0
+    ? pastFeedback
+        .map(
+          (f, i) =>
+            `Routine ${i + 1}: Rating ${f.overall_rating}/5, Skin felt: ${(f.skin_feel || []).join(", ") || "N/A"}, Improved: ${f.what_improved || "N/A"}, Worsened: ${f.what_worsened || "N/A"}`
+        )
+        .join("\n")
+    : "No previous feedback — this is the user's first routine."
+}
+
+SKIN TREND (last ${pastAnalyses?.length || 0} analyses):
+${
+  pastAnalyses && pastAnalyses.length > 1
+    ? `Scores: ${pastAnalyses.map((a) => `${a.health_score} (${new Date(a.created_at).toLocaleDateString()})`).join(" → ")}
+Trend: ${pastAnalyses[0].health_score > pastAnalyses[pastAnalyses.length - 1].health_score ? "Improving" : pastAnalyses[0].health_score === pastAnalyses[pastAnalyses.length - 1].health_score ? "Stable" : "Declining"}`
+    : "Not enough data for trend analysis yet."
+}
+
+CURRENT MONTH: ${new Date().toLocaleDateString("en-US", { month: "long" })} (adjust for seasonal conditions)
+
 RULES:
 - AVOID any ingredients the user is allergic to
+- If past feedback mentions irritation or worsening, AVOID those product types/ingredients
+- If past feedback mentions improvements, lean into similar approaches
 - Match product suggestions to the user's budget preference
 - Order steps correctly (cleanser → toner → serum → treatment → moisturizer → SPF for AM)
 - Keep it realistic: 4-6 steps max per routine
 - Include one weekly treatment if applicable
+- Consider seasonal factors (humidity, UV index, temperature)
 
 Respond ONLY with valid JSON (no markdown, no code fences):
 
@@ -133,6 +174,22 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
+    // Fetch past feedback for adaptive learning
+    const { data: pastFeedback } = await supabase
+      .from("routine_feedback")
+      .select("overall_rating, skin_feel, what_improved, what_worsened")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    // Fetch last 3 analyses for trend detection
+    const { data: pastAnalyses } = await supabase
+      .from("skin_analyses")
+      .select("health_score, skin_type, hydration_level, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(3);
+
     // Deactivate previous routines
     await supabase
       .from("routines")
@@ -142,7 +199,9 @@ export async function POST(request: NextRequest) {
 
     const prompt = buildRoutinePrompt(
       analysis.raw_response as Record<string, unknown>,
-      skinProfile as Record<string, unknown> | null
+      skinProfile as Record<string, unknown> | null,
+      (pastFeedback as FeedbackHistory[]) || [],
+      (pastAnalyses as AnalysisHistory[]) || []
     );
 
     let routineData;

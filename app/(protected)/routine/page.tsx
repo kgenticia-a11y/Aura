@@ -12,6 +12,8 @@ import {
   Sparkles,
   ChevronRight,
   ShoppingBag,
+  Star,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -356,18 +358,27 @@ export default function RoutinePage() {
         })}
       </div>
 
-      {/* CTA */}
-      <div className="mt-8 p-6 rounded-2xl border border-border/50 bg-card/50 text-center">
-        <p className="text-sm text-muted-foreground mb-3">
-          Follow this routine for a week, then let us know how your skin
-          feels.
-        </p>
+      {/* Feedback + Capture CTAs */}
+      <div className="mt-8 grid sm:grid-cols-2 gap-4">
+        <Link
+          href="/feedback"
+          className="p-5 rounded-2xl border border-gold/20 bg-gold/5 hover:bg-gold/10 transition-colors text-center"
+        >
+          <Star className="w-6 h-6 text-gold mx-auto mb-2" />
+          <p className="font-semibold text-sm mb-1">Rate This Routine</p>
+          <p className="text-xs text-muted-foreground">
+            Your feedback improves future recommendations
+          </p>
+        </Link>
         <Link
           href="/capture"
-          className="inline-flex items-center gap-2 text-sm text-gold hover:underline font-medium"
+          className="p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/20 transition-colors text-center"
         >
-          Track your progress with a new selfie
-          <ChevronRight className="w-4 h-4" />
+          <Camera className="w-6 h-6 text-gold mx-auto mb-2" />
+          <p className="font-semibold text-sm mb-1">Track Progress</p>
+          <p className="text-xs text-muted-foreground">
+            Take a new selfie to compare your skin
+          </p>
         </Link>
       </div>
     </div>
