@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 
@@ -23,6 +24,23 @@ export default async function ProtectedLayout({
     .select("full_name, email, avatar_url")
     .eq("id", user.id)
     .single();
+
+  // Check if onboarding is completed — redirect if not
+  const headersList = await headers();
+  const pathname = headersList.get("x-next-pathname") || "";
+  const isOnboardingPage = pathname.includes("/onboarding");
+
+  if (!isOnboardingPage) {
+    const { data: skinProfile } = await supabase
+      .from("skin_profiles")
+      .select("onboarding_completed")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!skinProfile?.onboarding_completed) {
+      redirect("/onboarding");
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
