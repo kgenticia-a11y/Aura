@@ -71,9 +71,17 @@ export default async function TimelinePage() {
         Dashboard
       </Link>
 
-      <h1 className="text-3xl font-bold mb-2">
-        Skin <span className="text-gradient-gold">Journey</span>
-      </h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-3xl font-bold">
+          Skin <span className="text-gradient-gold">Journey</span>
+        </h1>
+        <Link
+          href="/compare"
+          className="text-sm text-gold hover:underline font-medium"
+        >
+          Before & After →
+        </Link>
+      </div>
       <p className="text-muted-foreground mb-10">
         Your complete skincare history in one place.
       </p>

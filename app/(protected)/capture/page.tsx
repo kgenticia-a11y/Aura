@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CameraCapture } from "@/components/camera-capture";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/events";
 
 export default function CapturePage() {
   const router = useRouter();
@@ -61,9 +62,9 @@ export default function CapturePage() {
         return;
       }
 
+      trackEvent("photo_captured", { resolution });
       toast.success("Photo uploaded! Starting AI analysis...");
 
-      // Trigger analysis (Phase 5 will implement this)
       router.push(`/analysis/${photo.id}`);
     } catch (err) {
       console.error("Capture error:", err);

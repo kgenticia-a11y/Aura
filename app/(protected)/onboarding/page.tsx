@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/events";
 import {
   Sparkles,
   ArrowRight,
@@ -122,6 +123,7 @@ export default function OnboardingPage() {
         return;
       }
 
+      trackEvent("onboarding_completed", { skin_type: skinType, budget });
       toast.success("Profile complete! Let's analyze your skin.");
       router.push("/capture");
     } catch {

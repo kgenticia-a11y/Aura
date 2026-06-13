@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/events";
 import { Button } from "@/components/ui/button";
 import {
   Star,
@@ -121,6 +122,7 @@ export default function FeedbackPage() {
         return;
       }
 
+      trackEvent("feedback_submitted", { rating, skin_feel: skinFeel });
       toast.success(
         "Thank you! Your feedback will improve your next routine."
       );

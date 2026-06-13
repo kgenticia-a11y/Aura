@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/events";
 import {
   Sun,
   Moon,
@@ -14,6 +15,7 @@ import {
   ShoppingBag,
   Star,
   Camera,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -56,12 +58,78 @@ export default function RoutinePage() {
     created_at: string;
   } | null>(null);
   const [productMatches, setProductMatches] = useState<RoutineProductMatch[]>([]);
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     loadRoutine();
   }, []);
+
+  useEffect(() => {
+    if (routine) {
+      loadTodayCompletions(routine.id);
+    }
+  }, [routine]);
+
+  async function loadTodayCompletions(routineId: string) {
+    const supabase = createClient();
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data } = await supabase
+      .from("routine_step_completions")
+      .select("step_type, step_index")
+      .eq("routine_id", routineId)
+      .eq("completed_date", today);
+
+    if (data) {
+      setCompletedSteps(
+        new Set(data.map((c) => `${c.step_type}-${c.step_index}`))
+      );
+    }
+  }
+
+  async function toggleStep(stepType: string, stepIndex: number) {
+    if (!routine) return;
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const key = `${stepType}-${stepIndex}`;
+    const today = new Date().toISOString().split("T")[0];
+    const isCompleted = completedSteps.has(key);
+
+    if (isCompleted) {
+      // Uncheck — delete the completion record
+      await supabase
+        .from("routine_step_completions")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("routine_id", routine.id)
+        .eq("step_type", stepType)
+        .eq("step_index", stepIndex)
+        .eq("completed_date", today);
+
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    } else {
+      // Check — insert
+      await supabase.from("routine_step_completions").insert({
+        user_id: user.id,
+        routine_id: routine.id,
+        step_type: stepType,
+        step_index: stepIndex,
+      });
+
+      setCompletedSteps((prev) => new Set(prev).add(key));
+      trackEvent("routine_step_completed", { step_type: stepType, step_index: stepIndex });
+    }
+  }
 
   async function loadRoutine() {
     const supabase = createClient();
@@ -258,25 +326,67 @@ export default function RoutinePage() {
         />
       </div>
 
+      {/* Daily check-in progress */}
+      {activeTab !== "weekly" && (steps as RoutineStep[]).length > 0 && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Check className="w-4 h-4 text-gold" />
+          <span>
+            Today: {
+              [...completedSteps].filter((k) => k.startsWith(activeTab)).length
+            }{" "}
+            / {(steps as RoutineStep[]).length} steps complete
+          </span>
+        </div>
+      )}
+
       {/* Steps */}
       <div className="space-y-4">
         {(steps as RoutineStep[]).map((step, i) => {
           const matchedProducts = getProductsForStep(activeTab, i);
+          const isCompleted = completedSteps.has(`${activeTab}-${i}`);
 
           return (
             <div
               key={i}
-              className="p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/20 transition-colors"
+              className={`p-5 rounded-2xl border bg-card/50 transition-colors ${
+                isCompleted
+                  ? "border-gold/40 bg-gold/5"
+                  : "border-border/50 hover:border-gold/20"
+              }`}
             >
               <div className="flex items-start gap-4">
-                {/* Step number */}
-                <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold font-semibold text-sm shrink-0 mt-0.5">
-                  {step.order || i + 1}
-                </div>
+                {/* Check-off circle (skip for weekly) */}
+                {activeTab !== "weekly" ? (
+                  <button
+                    onClick={() => toggleStep(activeTab, i)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${
+                      isCompleted
+                        ? "bg-gold text-charcoal"
+                        : "border-2 border-gold/30 text-gold hover:border-gold hover:bg-gold/10"
+                    }`}
+                    aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
+                  >
+                    {isCompleted ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <span className="text-sm font-semibold">
+                        {step.order || i + 1}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold font-semibold text-sm shrink-0 mt-0.5">
+                    {step.order || i + 1}
+                  </div>
+                )}
 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold">{step.title}</h3>
+                    <h3
+                      className={`font-semibold ${isCompleted ? "line-through text-muted-foreground" : ""}`}
+                    >
+                      {step.title}
+                    </h3>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground capitalize">
                       {step.category}
                     </span>

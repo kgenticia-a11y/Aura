@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/events";
 import { Button } from "@/components/ui/button";
 import {
   User,
@@ -144,6 +145,7 @@ export default function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
 
+      trackEvent("data_exported");
       toast.success("Data exported successfully.");
     } catch {
       toast.error("Failed to export data.");

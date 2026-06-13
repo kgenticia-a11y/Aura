@@ -13,6 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
+import { SkinInsights } from "@/components/skin-insights";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -103,6 +104,9 @@ export default async function DashboardPage() {
           Your personalized skincare dashboard
         </p>
       </div>
+
+      {/* AI Insights Narrative */}
+      {hasAnalyses && <SkinInsights />}
 
       {/* Score Overview */}
       {hasAnalyses ? (

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/events";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function LoginPage() {
         return;
       }
 
+      trackEvent("login", { method: "email" });
       toast.success("Welcome back!");
       router.push("/dashboard");
       router.refresh();
