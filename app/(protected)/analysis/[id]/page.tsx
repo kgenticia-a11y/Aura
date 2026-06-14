@@ -54,6 +54,7 @@ export default function AnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [benchmark, setBenchmark] = useState<{ avg_score: number; sample_size: number } | null>(null);
 
   useEffect(() => {
     async function loadOrAnalyze() {
@@ -113,6 +114,24 @@ export default function AnalysisPage() {
 
     loadOrAnalyze();
   }, [photoId]);
+
+  useEffect(() => {
+    async function loadBenchmark() {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .rpc("get_health_score_benchmark")
+        .single();
+
+      if (!error && data) {
+        const row = data as { avg_score: number; sample_size: number };
+        if (row.sample_size >= 5) {
+          setBenchmark(row);
+        }
+      }
+    }
+
+    loadBenchmark();
+  }, []);
 
   if (loading) {
     return (
@@ -237,6 +256,16 @@ export default function AnalysisPage() {
           />
         </div>
         <p className="text-sm text-muted-foreground mt-3">{summary}</p>
+        {benchmark && (
+          <p className="text-xs text-muted-foreground/70 mt-3 pt-3 border-t border-border/50">
+            {analysis.health_score > benchmark.avg_score
+              ? `Your score is ${analysis.health_score - benchmark.avg_score} points above`
+              : analysis.health_score < benchmark.avg_score
+              ? `Your score is ${benchmark.avg_score - analysis.health_score} points below`
+              : "Your score matches"}{" "}
+            the Aura community average of {benchmark.avg_score} (last 90 days).
+          </p>
+        )}
       </div>
 
       {/* Skin Type & Hydration */}

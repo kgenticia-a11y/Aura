@@ -63,7 +63,7 @@ export default async function DashboardPage() {
   // Fetch completion dates for streak calculation
   const { data: completions } = await supabase
     .from("routine_step_completions")
-    .select("completed_date")
+    .select("completed_date, step_type, step_index")
     .eq("user_id", user!.id)
     .order("completed_date", { ascending: false });
 
@@ -131,6 +131,32 @@ export default async function DashboardPage() {
       )
     : null;
   const REORDER_THRESHOLD_DAYS = 30;
+
+  // Weekly adherence: % of routine steps completed over the last 7 days
+  let weeklyAdherence: number | null = null;
+  if (activeRoutine && completions) {
+    const stepsPerDay =
+      (activeRoutine.morning_steps as unknown[]).length +
+      (activeRoutine.evening_steps as unknown[]).length;
+
+    if (stepsPerDay > 0) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      const cutoff = sevenDaysAgo.toISOString().split("T")[0];
+
+      const recentCompletions = completions.filter(
+        (c) =>
+          c.completed_date >= cutoff &&
+          (c.step_type === "morning" || c.step_type === "evening")
+      );
+
+      const possibleSteps = stepsPerDay * 7;
+      weeklyAdherence = Math.round(
+        (recentCompletions.length / possibleSteps) * 100
+      );
+    }
+  }
 
   // Days since last analysis
   const daysSinceAnalysis = latestAnalysis
@@ -234,6 +260,25 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
+
+          {/* Weekly Adherence */}
+          {weeklyAdherence !== null && (
+            <div className="p-5 rounded-2xl border border-border/50 bg-card/50">
+              <p className="text-sm text-muted-foreground mb-3">
+                Weekly Adherence
+              </p>
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-gold" />
+                <p className="text-xl font-semibold">{weeklyAdherence}%</p>
+              </div>
+              <div className="w-full h-2 rounded-full bg-secondary mt-2 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gold"
+                  style={{ width: `${Math.min(weeklyAdherence, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
