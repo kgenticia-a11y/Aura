@@ -16,7 +16,9 @@ Evaluate the following and respond ONLY with valid JSON (no markdown, no code fe
     {
       "name": "string - concern name (e.g. redness, uneven tone, visible pores, dullness, dark circles, fine lines, acne, hyperpigmentation, dehydration, texture)",
       "severity": "mild" | "moderate" | "significant",
-      "description": "string - brief 1-sentence description of what you observe"
+      "description": "string - brief 1-sentence description of what you observe",
+      "evidence": "string - brief note on the specific visual cue that led to this finding (e.g. 'visible enlarged pores across the nose and cheeks')",
+      "confidence": "low" | "medium" | "high"
     }
   ],
   "hydration_level": "low" | "medium" | "high",
@@ -25,11 +27,13 @@ Evaluate the following and respond ONLY with valid JSON (no markdown, no code fe
     "sun_damage_signs": "none" | "mild" | "moderate" | "significant",
     "dehydration_signs": "none" | "mild" | "moderate" | "significant"
   },
+  "overall_confidence": "low" | "medium" | "high" - your overall confidence in this analysis based on photo quality, lighting, and angle,
+  "confidence_reason": "string - 1 sentence explaining what drove the confidence level (e.g. photo quality, lighting, resolution)",
   "overall_summary": "string - 2-3 sentence summary of the skin's cosmetic condition and top priorities"
 }
 
 Be thorough but honest. Only report what you can actually observe in the photo.
-If the photo quality or lighting is poor, note that in the summary and adjust confidence accordingly.`;
+If the photo quality or lighting is poor, note that in the summary and lower overall_confidence accordingly.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -133,11 +137,15 @@ export async function POST(request: NextRequest) {
             name: "Uneven tone",
             severity: "mild",
             description: "Slight variation in skin tone across the cheeks and forehead.",
+            evidence: "Subtle tonal contrast visible between cheeks and forehead under current lighting.",
+            confidence: "medium",
           },
           {
             name: "Visible pores",
             severity: "mild",
             description: "Moderately visible pores in the T-zone area.",
+            evidence: "Enlarged pore texture visible across the nose and forehead.",
+            confidence: "high",
           },
         ],
         hydration_level: "medium",
@@ -146,6 +154,8 @@ export async function POST(request: NextRequest) {
           sun_damage_signs: "none",
           dehydration_signs: "mild",
         },
+        overall_confidence: "medium",
+        confidence_reason: "Lighting and resolution were adequate but not ideal for fine detail.",
         overall_summary:
           "Your skin appears generally healthy with a combination skin type. The main areas to focus on are evening out skin tone and maintaining hydration, particularly in drier areas. A consistent routine with targeted ingredients would benefit your skin.",
       };

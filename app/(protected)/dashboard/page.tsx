@@ -112,6 +112,26 @@ export default async function DashboardPage() {
       milestones.push({ label: "Score Improved", done: true });
   }
 
+  // Streak milestones
+  const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100];
+  for (const m of STREAK_MILESTONES) {
+    if (streak >= m) milestones.push({ label: `${m}-Day Streak`, done: true });
+  }
+
+  // Newly hit streak milestone (for celebration banner)
+  const justHitStreakMilestone = STREAK_MILESTONES.includes(streak)
+    ? streak
+    : null;
+
+  // Days since active routine was generated (for reorder reminder)
+  const daysSinceRoutine = activeRoutine
+    ? Math.floor(
+        (Date.now() - new Date(activeRoutine.created_at).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : null;
+  const REORDER_THRESHOLD_DAYS = 30;
+
   // Days since last analysis
   const daysSinceAnalysis = latestAnalysis
     ? Math.floor(
@@ -143,7 +163,9 @@ export default async function DashboardPage() {
               {streak} day{streak === 1 ? "" : "s"} streak
             </p>
             <p className="text-xs text-muted-foreground">
-              Keep completing your routine daily to grow your streak
+              {justHitStreakMilestone
+                ? `🎉 You just hit a ${justHitStreakMilestone}-day streak — keep it going!`
+                : "Keep completing your routine daily to grow your streak"}
             </p>
           </div>
         </div>
@@ -283,6 +305,26 @@ export default async function DashboardPage() {
               day: "numeric",
             })}
           </p>
+        </div>
+      )}
+
+      {/* Reorder Reminder */}
+      {daysSinceRoutine !== null && daysSinceRoutine >= REORDER_THRESHOLD_DAYS && (
+        <div className="p-4 rounded-xl border border-gold/20 bg-gold/5 mb-8 flex items-center gap-3">
+          <FlaskConical className="w-5 h-5 text-gold shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Running low on products?</p>
+            <p className="text-xs text-muted-foreground">
+              It&apos;s been {daysSinceRoutine} days since your routine was
+              generated — most products last 30-60 days.
+            </p>
+          </div>
+          <Link
+            href="/products"
+            className="shrink-0 px-4 py-2 rounded-lg bg-gold text-charcoal text-sm font-semibold hover:bg-gold-light transition-colors"
+          >
+            Shop
+          </Link>
         </div>
       )}
 

@@ -19,7 +19,15 @@ interface Concern {
   name: string;
   severity: "mild" | "moderate" | "significant";
   description: string;
+  evidence?: string;
+  confidence?: "low" | "medium" | "high";
 }
+
+const CONFIDENCE_STYLES: Record<string, string> = {
+  high: "bg-green-500/20 text-green-400",
+  medium: "bg-amber-500/20 text-amber-400",
+  low: "bg-red-500/20 text-red-400",
+};
 
 interface Analysis {
   id: string;
@@ -154,6 +162,8 @@ export default function AnalysisPage() {
   const summary =
     (raw?.overall_summary as string) ||
     "Analysis complete. Review your results below.";
+  const overallConfidence = raw?.overall_confidence as string | undefined;
+  const confidenceReason = raw?.confidence_reason as string | undefined;
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12 page-transition">
@@ -182,7 +192,7 @@ export default function AnalysisPage() {
       </div>
 
       {/* Disclaimer */}
-      <div className="flex items-start gap-3 p-4 rounded-xl border border-gold/20 bg-gold/5 mb-8">
+      <div className="flex items-start gap-3 p-4 rounded-xl border border-gold/20 bg-gold/5 mb-4">
         <Info className="w-5 h-5 text-gold shrink-0 mt-0.5" />
         <p className="text-sm text-muted-foreground">
           <strong className="text-gold">Cosmetic guidance only</strong> — this
@@ -190,6 +200,22 @@ export default function AnalysisPage() {
           Consult a dermatologist for medical concerns.
         </p>
       </div>
+
+      {/* Confidence */}
+      {overallConfidence && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-border/50 bg-card/50 mb-8">
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize shrink-0 mt-0.5 ${
+              CONFIDENCE_STYLES[overallConfidence] ?? CONFIDENCE_STYLES.medium
+            }`}
+          >
+            {overallConfidence} confidence
+          </span>
+          {confidenceReason && (
+            <p className="text-sm text-muted-foreground">{confidenceReason}</p>
+          )}
+        </div>
+      )}
 
       {/* Health Score */}
       <div className="p-6 rounded-2xl border border-border/50 bg-card/50 mb-6">
@@ -261,23 +287,39 @@ export default function AnalysisPage() {
                 key={i}
                 className="p-4 rounded-xl border border-border/50 bg-card/50"
               >
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1 gap-2">
                   <h3 className="font-medium">{concern.name}</h3>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      concern.severity === "significant"
-                        ? "bg-red-500/20 text-red-400"
-                        : concern.severity === "moderate"
-                        ? "bg-amber-500/20 text-amber-400"
-                        : "bg-green-500/20 text-green-400"
-                    }`}
-                  >
-                    {concern.severity}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {concern.confidence && (
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                          CONFIDENCE_STYLES[concern.confidence] ?? CONFIDENCE_STYLES.medium
+                        }`}
+                      >
+                        {concern.confidence} confidence
+                      </span>
+                    )}
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        concern.severity === "significant"
+                          ? "bg-red-500/20 text-red-400"
+                          : concern.severity === "moderate"
+                          ? "bg-amber-500/20 text-amber-400"
+                          : "bg-green-500/20 text-green-400"
+                      }`}
+                    >
+                      {concern.severity}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {concern.description}
                 </p>
+                {concern.evidence && (
+                  <p className="text-xs text-muted-foreground/70 mt-1.5 italic">
+                    Why: {concern.evidence}
+                  </p>
+                )}
               </div>
             ))}
           </div>

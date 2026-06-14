@@ -171,23 +171,10 @@ export default function SettingsPage() {
 
       if (!user) return;
 
-      // Delete all user data (cascade will handle most)
-      await supabase.from("routine_feedback").delete().eq("user_id", user.id);
-      await supabase.from("routines").delete().eq("user_id", user.id);
-      await supabase.from("skin_analyses").delete().eq("user_id", user.id);
-      await supabase.from("skin_photos").delete().eq("user_id", user.id);
-      await supabase.from("skin_profiles").delete().eq("user_id", user.id);
-      await supabase.from("profiles").delete().eq("id", user.id);
-
-      // Delete storage files
-      const { data: files } = await supabase.storage
-        .from("selfies")
-        .list(user.id);
-
-      if (files && files.length > 0) {
-        await supabase.storage
-          .from("selfies")
-          .remove(files.map((f) => `${user.id}/${f.name}`));
+      const response = await fetch("/api/account/delete", { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to delete account");
       }
 
       // Sign out
