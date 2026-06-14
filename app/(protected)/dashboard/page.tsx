@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { SkinInsights } from "@/components/skin-insights";
 import { MotionCard } from "@/components/motion-card";
+import { getSeasonalTip } from "@/lib/seasonal-tips";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -196,6 +197,8 @@ export default async function DashboardPage() {
   const showWelcomeBack =
     daysSinceLastCompletion !== null && daysSinceLastCompletion >= 3;
 
+  const seasonalTip = getSeasonalTip();
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-12 page-transition">
       {/* Welcome */}
@@ -270,6 +273,20 @@ export default async function DashboardPage() {
           </Link>
         </div>
       )}
+
+      {/* Seasonal Skin Tip */}
+      <div className="mb-6 p-4 rounded-2xl border border-border/50 bg-card/50">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl shrink-0">{seasonalTip.emoji}</span>
+          <div>
+            <p className="font-semibold text-sm">{seasonalTip.title}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {seasonalTip.tip}
+            </p>
+            <p className="text-xs text-gold mt-2">{seasonalTip.action}</p>
+          </div>
+        </div>
+      </div>
 
       {/* AI Insights Narrative */}
       {hasAnalyses && <SkinInsights />}

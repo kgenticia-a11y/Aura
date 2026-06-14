@@ -16,7 +16,9 @@ import {
   Star,
   Camera,
   Check,
+  AlertTriangle,
 } from "lucide-react";
+import { detectConflicts, type IngredientConflict } from "@/lib/ingredient-conflicts";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -59,6 +61,7 @@ export default function RoutinePage() {
   } | null>(null);
   const [productMatches, setProductMatches] = useState<RoutineProductMatch[]>([]);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [conflicts, setConflicts] = useState<IngredientConflict[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -145,6 +148,13 @@ export default function RoutinePage() {
 
     if (routineData) {
       setRoutine(routineData);
+
+      // Check for ingredient conflicts
+      const detected = detectConflicts(
+        routineData.morning_steps || [],
+        routineData.evening_steps || []
+      );
+      setConflicts(detected);
 
       // Load matched products
       const { data: rp } = await supabase
@@ -325,6 +335,40 @@ export default function RoutinePage() {
           label="Weekly"
         />
       </div>
+
+      {/* Ingredient Conflict Warnings */}
+      {conflicts.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {conflicts.map((c, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-3 p-4 rounded-xl border ${
+                c.severity === "warning"
+                  ? "border-amber-500/30 bg-amber-500/5"
+                  : "border-yellow-500/20 bg-yellow-500/5"
+              }`}
+            >
+              <AlertTriangle
+                className={`w-5 h-5 shrink-0 mt-0.5 ${
+                  c.severity === "warning" ? "text-amber-400" : "text-yellow-400"
+                }`}
+              />
+              <div>
+                <p className="text-sm font-medium">
+                  {c.ingredientA} + {c.ingredientB}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {c.reason}
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Found in {c.stepA.type} step &quot;{c.stepA.title}&quot; and{" "}
+                  {c.stepB.type} step &quot;{c.stepB.title}&quot;
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Daily check-in progress */}
       {activeTab !== "weekly" && (steps as RoutineStep[]).length > 0 && (
