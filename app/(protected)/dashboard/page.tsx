@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SkinInsights } from "@/components/skin-insights";
+import { MotionCard } from "@/components/motion-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -264,39 +265,43 @@ export default async function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-2 gap-4 mb-8">
-        <Link
-          href="/capture"
-          className="group p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/30 hover:glow-gold transition-all duration-300"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center text-gold group-hover:bg-gold/20 transition-colors">
-              <Camera className="w-5 h-5" />
+        <MotionCard>
+          <Link
+            href="/capture"
+            className="group block p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/30 hover:glow-rose transition-all duration-300"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose/20 to-lavender/30 flex items-center justify-center text-gold group-hover:scale-110 transition-transform">
+                <Camera className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold">New Analysis</h3>
+                <p className="text-xs text-muted-foreground">
+                  Take a selfie for AI skin analysis
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold">New Analysis</h3>
-              <p className="text-xs text-muted-foreground">
-                Take a selfie for AI skin analysis
-              </p>
-            </div>
-          </div>
-        </Link>
+          </Link>
+        </MotionCard>
 
-        <Link
-          href="/feedback"
-          className="group p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/30 hover:glow-gold transition-all duration-300"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center text-gold group-hover:bg-gold/20 transition-colors">
-              <Star className="w-5 h-5" />
+        <MotionCard>
+          <Link
+            href="/feedback"
+            className="group block p-5 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/30 hover:glow-rose transition-all duration-300"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose/20 to-lavender/30 flex items-center justify-center text-gold group-hover:scale-110 transition-transform">
+                <Star className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Rate Routine</h3>
+                <p className="text-xs text-muted-foreground">
+                  Share feedback to improve recommendations
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold">Rate Routine</h3>
-              <p className="text-xs text-muted-foreground">
-                Share feedback to improve recommendations
-              </p>
-            </div>
-          </div>
-        </Link>
+          </Link>
+        </MotionCard>
       </div>
 
       {/* Milestones */}

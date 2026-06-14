@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, Shield, Camera, TrendingUp } from "lucide-react";
+import { MotionCard } from "@/components/motion-card";
 
 export default function LandingPage() {
   return (
@@ -8,8 +9,20 @@ export default function LandingPage() {
       <section className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
         {/* Background gradient orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gold/5 blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-rose/5 blur-3xl" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-rose/20 blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-lavender/25 blur-3xl" />
+          <div className="absolute top-1/3 right-1/3 w-64 h-64 rounded-full bg-peach/20 blur-3xl" />
+
+          {/* Floating sparkle accents */}
+          <Sparkles className="sparkle absolute top-[18%] left-[12%] w-6 h-6 text-rose/60" />
+          <Sparkles
+            className="sparkle absolute top-[30%] right-[15%] w-4 h-4 text-lavender/70"
+            style={{ animationDelay: "1.2s" }}
+          />
+          <Sparkles
+            className="sparkle absolute bottom-[22%] left-[20%] w-5 h-5 text-peach/70"
+            style={{ animationDelay: "2.4s" }}
+          />
         </div>
 
         <div className="relative z-10 page-transition max-w-3xl mx-auto">
@@ -91,6 +104,12 @@ export default function LandingPage() {
           </p>
           <div className="flex gap-6">
             <Link
+              href="/pricing"
+              className="text-sm text-muted-foreground hover:text-gold transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/privacy"
               className="text-sm text-muted-foreground hover:text-gold transition-colors"
             >
@@ -116,12 +135,12 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="group p-6 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/30 hover:glow-gold transition-all duration-300">
-      <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center text-gold mb-4 group-hover:bg-gold/20 transition-colors">
+    <MotionCard className="group p-6 rounded-2xl border border-border/50 bg-card/50 hover:border-gold/30 hover:glow-rose transition-all duration-300">
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose/20 to-lavender/30 flex items-center justify-center text-gold mb-4 group-hover:scale-110 transition-transform">
         {icon}
       </div>
       <h3 className="text-xl font-semibold mb-2">{title}</h3>
       <p className="text-muted-foreground leading-relaxed">{description}</p>
-    </div>
+    </MotionCard>
   );
 }

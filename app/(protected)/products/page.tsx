@@ -12,6 +12,7 @@ import {
   Loader2,
   ChevronLeft,
   Package,
+  Heart,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -43,6 +44,8 @@ export default function ProductsPage() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -51,7 +54,12 @@ export default function ProductsPage() {
   async function loadData() {
     const supabase = createClient();
 
-    const [{ data: prods }, { data: revs }] = await Promise.all([
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    setUserId(user?.id ?? null);
+
+    const [{ data: prods }, { data: revs }, { data: favs }] = await Promise.all([
       supabase
         .from("products")
         .select("id, name, brand, category, price_tier, description, key_ingredients")
@@ -59,11 +67,43 @@ export default function ProductsPage() {
       supabase
         .from("product_reviews")
         .select("product_id, rating, would_repurchase"),
+      user
+        ? supabase
+            .from("product_favorites")
+            .select("product_id")
+            .eq("user_id", user.id)
+        : Promise.resolve({ data: [] as { product_id: string }[] }),
     ]);
 
     if (prods) setProducts(prods);
     if (revs) setReviews(revs);
+    if (favs) setFavorites(new Set(favs.map((f) => f.product_id)));
     setLoading(false);
+  }
+
+  async function toggleFavorite(productId: string) {
+    if (!userId) return;
+    const supabase = createClient();
+    const isFav = favorites.has(productId);
+
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (isFav) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+
+    if (isFav) {
+      await supabase
+        .from("product_favorites")
+        .delete()
+        .eq("user_id", userId)
+        .eq("product_id", productId);
+    } else {
+      await supabase
+        .from("product_favorites")
+        .insert({ user_id: userId, product_id: productId });
+    }
   }
 
   function getReview(productId: string) {
@@ -127,7 +167,11 @@ export default function ProductsPage() {
 
   const categories = [...new Set(products.map((p) => p.category))];
   const filtered =
-    filter === "all" ? products : products.filter((p) => p.category === filter);
+    filter === "all"
+      ? products
+      : filter === "favorites"
+      ? products.filter((p) => favorites.has(p.id))
+      : products.filter((p) => p.category === filter);
 
   if (loading) {
     return (
@@ -165,6 +209,17 @@ export default function ProductsPage() {
           }`}
         >
           All ({products.length})
+        </button>
+        <button
+          onClick={() => setFilter("favorites")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+            filter === "favorites"
+              ? "bg-gold text-charcoal"
+              : "bg-secondary text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Heart className="w-3 h-3 fill-current" />
+          My Favorites ({favorites.size})
         </button>
         {categories.map((cat) => (
           <button
@@ -229,7 +284,20 @@ export default function ProductsPage() {
                   )}
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 text-right flex flex-col items-end gap-2">
+                  <button
+                    onClick={() => toggleFavorite(product.id)}
+                    title={favorites.has(product.id) ? "Remove from favorites" : "Add to favorites"}
+                    className="p-1.5 rounded-full hover:bg-rose/10 transition-colors"
+                  >
+                    <Heart
+                      className={`w-4 h-4 transition-colors ${
+                        favorites.has(product.id)
+                          ? "fill-rose text-rose"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                  </button>
                   {review ? (
                     <div className="flex items-center gap-0.5">
                       {[1, 2, 3, 4, 5].map((s) => (

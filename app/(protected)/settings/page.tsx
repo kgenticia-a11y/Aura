@@ -15,6 +15,7 @@ import {
   Save,
   ChevronLeft,
   AlertTriangle,
+  Bell,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -27,6 +28,8 @@ export default function SettingsPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [weeklySummary, setWeeklySummary] = useState(true);
   const [skinProfile, setSkinProfile] = useState<{
     known_skin_type: string;
     budget_preference: string;
@@ -45,13 +48,15 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, email, email_notifications, weekly_summary")
         .eq("id", user.id)
         .single();
 
       if (profile) {
         setFullName(profile.full_name || "");
         setEmail(profile.email || user.email || "");
+        setEmailNotifications(profile.email_notifications ?? true);
+        setWeeklySummary(profile.weekly_summary ?? true);
       }
 
       const { data: sp } = await supabase
@@ -82,7 +87,11 @@ export default function SettingsPage() {
 
       await supabase
         .from("profiles")
-        .update({ full_name: fullName })
+        .update({
+          full_name: fullName,
+          email_notifications: emailNotifications,
+          weekly_summary: weeklySummary,
+        })
         .eq("id", user.id);
 
       toast.success("Settings saved.");
@@ -269,6 +278,74 @@ export default function SettingsPage() {
               </Link>
             </div>
           )}
+
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-gold text-charcoal hover:bg-gold-light font-semibold glow-gold transition-all duration-300"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Save Changes
+          </Button>
+        </div>
+      </section>
+
+      {/* Notifications */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Bell className="w-4 h-4 text-gold" />
+          Notifications
+        </h2>
+        <div className="space-y-4 p-5 rounded-2xl border border-border/50 bg-card/50">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Email Notifications</p>
+              <p className="text-xs text-muted-foreground">
+                Get notified about routine reminders and updates
+              </p>
+            </div>
+            <button
+              onClick={() => setEmailNotifications((v) => !v)}
+              role="switch"
+              aria-checked={emailNotifications}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                emailNotifications ? "bg-gold" : "bg-secondary"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  emailNotifications ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Weekly Summary</p>
+              <p className="text-xs text-muted-foreground">
+                Receive a weekly recap of your skin progress
+              </p>
+            </div>
+            <button
+              onClick={() => setWeeklySummary((v) => !v)}
+              role="switch"
+              aria-checked={weeklySummary}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                weeklySummary ? "bg-gold" : "bg-secondary"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  weeklySummary ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
 
           <Button
             onClick={handleSave}

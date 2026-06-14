@@ -13,8 +13,11 @@ import {
   User,
   Clock,
   Package,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 interface AppHeaderProps {
   user: {
@@ -26,6 +29,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ user }: AppHeaderProps) {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -61,6 +65,9 @@ export function AppHeader({ user }: AppHeaderProps) {
           <NavLink href="/timeline" icon={<Clock className="w-4 h-4" />}>
             Timeline
           </NavLink>
+          <NavLink href="/pricing" icon={<Sparkles className="w-4 h-4" />}>
+            Pricing
+          </NavLink>
         </nav>
 
         {/* User menu */}
@@ -70,6 +77,18 @@ export function AppHeader({ user }: AppHeaderProps) {
               {user.name}
             </p>
           </div>
+
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </button>
 
           <Link
             href="/settings"
