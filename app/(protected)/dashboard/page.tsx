@@ -11,6 +11,7 @@ import {
   Award,
   Star,
   Clock,
+  Flame,
 } from "lucide-react";
 import Link from "next/link";
 import { SkinInsights } from "@/components/skin-insights";
@@ -59,6 +60,31 @@ export default async function DashboardPage() {
     .select("id", { count: "exact", head: true })
     .eq("user_id", user!.id);
 
+  // Fetch completion dates for streak calculation
+  const { data: completions } = await supabase
+    .from("routine_step_completions")
+    .select("completed_date")
+    .eq("user_id", user!.id)
+    .order("completed_date", { ascending: false });
+
+  // Calculate current streak: consecutive days (ending today or yesterday) with at least one completed step
+  let streak = 0;
+  if (completions && completions.length > 0) {
+    const completedDates = new Set(completions.map((c) => c.completed_date));
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    // Allow today to be "in progress" — start counting from today if done, otherwise from yesterday
+    if (!completedDates.has(cursor.toISOString().split("T")[0])) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    while (completedDates.has(cursor.toISOString().split("T")[0])) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+  }
+
   const firstName = profile?.full_name?.split(" ")[0] || "there";
   const latestAnalysis = analyses?.[0];
   const previousAnalysis = analyses?.[1];
@@ -105,6 +131,23 @@ export default async function DashboardPage() {
           Your personalized skincare dashboard
         </p>
       </div>
+
+      {/* Streak */}
+      {streak > 0 && (
+        <div className="flex items-center gap-3 mb-8 p-4 rounded-2xl border border-gold/20 bg-gradient-to-r from-rose/10 via-card to-peach/10">
+          <div className="w-10 h-10 rounded-xl bg-gold/15 flex items-center justify-center text-gold shrink-0">
+            <Flame className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">
+              {streak} day{streak === 1 ? "" : "s"} streak
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Keep completing your routine daily to grow your streak
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* AI Insights Narrative */}
       {hasAnalyses && <SkinInsights />}

@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   Package,
   Heart,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -46,6 +47,7 @@ export default function ProductsPage() {
   const [filter, setFilter] = useState<string>("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
+  const [allergies, setAllergies] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -59,7 +61,7 @@ export default function ProductsPage() {
     } = await supabase.auth.getUser();
     setUserId(user?.id ?? null);
 
-    const [{ data: prods }, { data: revs }, { data: favs }] = await Promise.all([
+    const [{ data: prods }, { data: revs }, { data: favs }, { data: skinProfile }] = await Promise.all([
       supabase
         .from("products")
         .select("id, name, brand, category, price_tier, description, key_ingredients")
@@ -73,12 +75,31 @@ export default function ProductsPage() {
             .select("product_id")
             .eq("user_id", user.id)
         : Promise.resolve({ data: [] as { product_id: string }[] }),
+      user
+        ? supabase
+            .from("skin_profiles")
+            .select("allergies")
+            .eq("user_id", user.id)
+            .single()
+        : Promise.resolve({ data: null }),
     ]);
 
     if (prods) setProducts(prods);
     if (revs) setReviews(revs);
     if (favs) setFavorites(new Set(favs.map((f) => f.product_id)));
+    if (skinProfile?.allergies) setAllergies(skinProfile.allergies);
     setLoading(false);
+  }
+
+  function getAllergyConflicts(product: Product) {
+    if (allergies.length === 0) return [];
+    return product.key_ingredients.filter((ing) =>
+      allergies.some(
+        (a) =>
+          ing.toLowerCase().includes(a.toLowerCase()) ||
+          a.toLowerCase().includes(ing.toLowerCase())
+      )
+    );
   }
 
   async function toggleFavorite(productId: string) {
@@ -240,11 +261,16 @@ export default function ProductsPage() {
       <div className="space-y-3">
         {filtered.map((product) => {
           const review = getReview(product.id);
+          const conflicts = getAllergyConflicts(product);
 
           return (
             <div
               key={product.id}
-              className="p-4 rounded-xl border border-border/50 bg-card/50 hover:border-gold/20 transition-colors"
+              className={`p-4 rounded-xl border bg-card/50 transition-colors ${
+                conflicts.length > 0
+                  ? "border-red-400/40 bg-red-400/5"
+                  : "border-border/50 hover:border-gold/20"
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -272,14 +298,30 @@ export default function ProductsPage() {
 
                   {product.key_ingredients.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {product.key_ingredients.slice(0, 4).map((ing, i) => (
-                        <span
-                          key={i}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-gold/5 text-gold/80 border border-gold/10"
-                        >
-                          {ing}
-                        </span>
-                      ))}
+                      {product.key_ingredients.slice(0, 4).map((ing, i) => {
+                        const isConflict = conflicts.includes(ing);
+                        return (
+                          <span
+                            key={i}
+                            className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                              isConflict
+                                ? "bg-red-400/10 text-red-400 border-red-400/30"
+                                : "bg-gold/5 text-gold/80 border-gold/10"
+                            }`}
+                          >
+                            {ing}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {conflicts.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2 text-xs text-red-400">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        Contains {conflicts.join(", ")} — listed in your allergies
+                      </span>
                     </div>
                   )}
                 </div>
