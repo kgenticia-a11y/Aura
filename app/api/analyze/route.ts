@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
+import { validateBody, analyzeSchema } from "@/lib/validation";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
@@ -77,16 +78,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request
-    const body = await request.json();
-    const { photo_id } = body;
-
-    if (!photo_id) {
+    // Parse and validate request
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
       return NextResponse.json(
-        { error: "photo_id is required" },
+        { error: "Invalid JSON body" },
         { status: 400 }
       );
     }
+
+    const { data: validatedBody, error: validationError } = validateBody(rawBody, analyzeSchema);
+    if (validationError) return validationError;
+
+    const { photo_id } = validatedBody;
 
     // Verify photo belongs to user
     const { data: photo, error: photoError } = await supabase

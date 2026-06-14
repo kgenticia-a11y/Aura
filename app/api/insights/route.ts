@@ -38,10 +38,9 @@ export async function GET() {
       );
     }
 
-    // Get last 5 analyses for trend
     const { data: analyses } = await supabase
       .from("skin_analyses")
-      .select("health_score, skin_type, hydration_level, concerns, created_at")
+      .select("id, health_score, skin_type, hydration_level, concerns, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5);
@@ -62,7 +61,33 @@ export async function GET() {
       });
     }
 
-    // Get recent feedback
+    const latest = analyses[0];
+    const oldest = analyses[analyses.length - 1];
+    const scoreDiff = latest.health_score - oldest.health_score;
+    const trend = scoreDiff > 5 ? "improving" : scoreDiff < -5 ? "declining" : "stable";
+
+    // Check cache — skip Gemini if latest analysis hasn't changed
+    const { data: cached } = await supabase
+      .from("cached_insights")
+      .select("payload, latest_analysis_id, analysis_count")
+      .eq("user_id", user.id)
+      .single();
+
+    if (
+      cached &&
+      cached.latest_analysis_id === latest.id &&
+      cached.analysis_count === analyses.length
+    ) {
+      return NextResponse.json({
+        ...(cached.payload as Record<string, unknown>),
+        trend,
+        latest_score: latest.health_score,
+        previous_score: oldest.health_score,
+        score_change: scoreDiff,
+        cached: true,
+      });
+    }
+
     const { data: feedback } = await supabase
       .from("routine_feedback")
       .select("overall_rating, skin_feel, what_improved")
@@ -70,14 +95,8 @@ export async function GET() {
       .order("created_at", { ascending: false })
       .limit(3);
 
-    const latest = analyses[0];
-    const oldest = analyses[analyses.length - 1];
-    const scoreDiff = latest.health_score - oldest.health_score;
-    const trend = scoreDiff > 5 ? "improving" : scoreDiff < -5 ? "declining" : "stable";
-
     const geminiApiKey = process.env.GEMINI_API_KEY;
 
-    // Fallback narrative without Gemini
     if (!geminiApiKey || geminiApiKey === "your-gemini-api-key-here") {
       const fallback =
         trend === "improving"
@@ -95,7 +114,6 @@ export async function GET() {
       });
     }
 
-    // Real Gemini call for narrative
     const genai = new GoogleGenAI({ apiKey: geminiApiKey });
 
     const prompt = `You are a luxury skincare advisor writing a personalized "Your skin this month" narrative for the user.
@@ -142,6 +160,17 @@ Respond ONLY with valid JSON (no markdown):
         .trim();
 
       const parsed = JSON.parse(cleaned);
+
+      // Cache the result
+      await supabase.from("cached_insights").upsert(
+        {
+          user_id: user.id,
+          payload: parsed,
+          analysis_count: analyses.length,
+          latest_analysis_id: latest.id,
+        },
+        { onConflict: "user_id" }
+      );
 
       return NextResponse.json({
         ...parsed,
