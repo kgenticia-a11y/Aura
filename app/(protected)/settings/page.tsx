@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [weeklySummary, setWeeklySummary] = useState(true);
+  const [photoRetentionDays, setPhotoRetentionDays] = useState(90);
+  const [cleaningUp, setCleaningUp] = useState(false);
   const [skinProfile, setSkinProfile] = useState<{
     known_skin_type: string;
     budget_preference: string;
@@ -48,7 +50,7 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email, email_notifications, weekly_summary")
+        .select("full_name, email, email_notifications, weekly_summary, photo_retention_days")
         .eq("id", user.id)
         .single();
 
@@ -57,6 +59,7 @@ export default function SettingsPage() {
         setEmail(profile.email || user.email || "");
         setEmailNotifications(profile.email_notifications ?? true);
         setWeeklySummary(profile.weekly_summary ?? true);
+        setPhotoRetentionDays(profile.photo_retention_days ?? 90);
       }
 
       const { data: sp } = await supabase
@@ -91,6 +94,7 @@ export default function SettingsPage() {
           full_name: fullName,
           email_notifications: emailNotifications,
           weekly_summary: weeklySummary,
+          photo_retention_days: photoRetentionDays,
         })
         .eq("id", user.id);
 
@@ -370,6 +374,63 @@ export default function SettingsPage() {
             >
               <Download className="w-4 h-4 mr-2" />
               Export
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Photo Retention</p>
+              <p className="text-xs text-muted-foreground">
+                Auto-delete selfie photos after this many days
+              </p>
+            </div>
+            <select
+              value={photoRetentionDays}
+              onChange={(e) => setPhotoRetentionDays(Number(e.target.value))}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+            >
+              <option value={30}>30 days</option>
+              <option value={60}>60 days</option>
+              <option value={90}>90 days</option>
+              <option value={180}>180 days</option>
+              <option value={365}>1 year</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Clean Up Now</p>
+              <p className="text-xs text-muted-foreground">
+                Delete photos older than your retention period
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setCleaningUp(true);
+                try {
+                  const res = await fetch("/api/photos/cleanup", { method: "POST" });
+                  const data = await res.json();
+                  if (res.ok) {
+                    toast.success(data.message);
+                  } else {
+                    toast.error(data.error || "Cleanup failed.");
+                  }
+                } catch {
+                  toast.error("Cleanup failed.");
+                } finally {
+                  setCleaningUp(false);
+                }
+              }}
+              disabled={cleaningUp}
+              className="border-gold/30 hover:bg-gold/10"
+            >
+              {cleaningUp ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Clean Up
             </Button>
           </div>
 
