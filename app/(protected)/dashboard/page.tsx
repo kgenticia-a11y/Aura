@@ -166,6 +166,36 @@ export default async function DashboardPage() {
       )
     : null;
 
+  // Smart streak nudges
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split("T")[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+  const completedDates = new Set(
+    completions?.map((c) => c.completed_date) ?? []
+  );
+  const completedToday = completedDates.has(todayStr);
+  const completedYesterday = completedDates.has(yesterdayStr);
+  const isAfternoon = new Date().getHours() >= 12;
+
+  // "Streak at risk" — had a streak yesterday but nothing today (afternoon only)
+  const streakAtRisk =
+    streak > 0 && completedYesterday && !completedToday && isAfternoon;
+
+  // "Welcome back" — last completion was 3+ days ago
+  let daysSinceLastCompletion: number | null = null;
+  if (completions && completions.length > 0) {
+    const lastDate = new Date(completions[0].completed_date + "T00:00:00");
+    daysSinceLastCompletion = Math.floor(
+      (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+  }
+  const showWelcomeBack =
+    daysSinceLastCompletion !== null && daysSinceLastCompletion >= 3;
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-12 page-transition">
       {/* Welcome */}
@@ -194,6 +224,50 @@ export default async function DashboardPage() {
                 : "Keep completing your routine daily to grow your streak"}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Smart Streak Nudges */}
+      {streakAtRisk && (
+        <div className="flex items-center gap-3 mb-6 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0">
+            <Flame className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm text-amber-400">
+              Your {streak}-day streak is at risk!
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Complete your routine today to keep the momentum going.
+            </p>
+          </div>
+          <Link
+            href="/routine"
+            className="shrink-0 px-4 py-2 rounded-lg bg-amber-500 text-charcoal text-sm font-semibold hover:bg-amber-400 transition-colors"
+          >
+            Do It Now
+          </Link>
+        </div>
+      )}
+
+      {showWelcomeBack && !streakAtRisk && (
+        <div className="flex items-center gap-3 mb-6 p-4 rounded-2xl border border-gold/20 bg-gold/5">
+          <div className="w-10 h-10 rounded-xl bg-gold/15 flex items-center justify-center text-gold shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Welcome back!</p>
+            <p className="text-xs text-muted-foreground">
+              It&apos;s been {daysSinceLastCompletion} days — let&apos;s pick up
+              where you left off with your routine.
+            </p>
+          </div>
+          <Link
+            href="/routine"
+            className="shrink-0 px-4 py-2 rounded-lg bg-gold text-charcoal text-sm font-semibold hover:bg-gold-light transition-colors"
+          >
+            Resume
+          </Link>
         </div>
       )}
 

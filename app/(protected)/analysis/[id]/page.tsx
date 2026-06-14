@@ -13,6 +13,8 @@ import {
   Loader2,
   ChevronLeft,
   Info,
+  Share2,
+  Download,
 } from "lucide-react";
 
 interface Concern {
@@ -56,6 +58,7 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [benchmark, setBenchmark] = useState<{ avg_score: number; sample_size: number } | null>(null);
   const [previousScore, setPreviousScore] = useState<number | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     async function loadOrAnalyze() {
@@ -391,6 +394,73 @@ export default function AnalysisPage() {
           </div>
         </div>
       )}
+
+      {/* Share Report Card */}
+      <div className="p-5 rounded-2xl border border-border/50 bg-card/50 mb-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <Share2 className="w-4 h-4 text-gold" />
+          Share Your Report
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Download or share your skin report card — a beautiful summary of this analysis.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={async () => {
+              const res = await fetch(`/api/report-card?id=${analysis.id}`);
+              if (!res.ok) return;
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `aura-report-${new Date(analysis.created_at).toISOString().split("T")[0]}.svg`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gold/30 text-foreground hover:bg-gold/10 transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Download
+          </button>
+          <button
+            onClick={async () => {
+              setSharing(true);
+              try {
+                const res = await fetch(`/api/report-card?id=${analysis.id}`);
+                if (!res.ok) return;
+                const blob = await res.blob();
+                const file = new File([blob], "aura-report.svg", { type: "image/svg+xml" });
+                if (navigator.share && navigator.canShare({ files: [file] })) {
+                  await navigator.share({
+                    title: "My Aura Skin Report",
+                    text: `My skin health score is ${analysis.health_score}/100!`,
+                    files: [file],
+                  });
+                } else if (navigator.share) {
+                  await navigator.share({
+                    title: "My Aura Skin Report",
+                    text: `My skin health score is ${analysis.health_score}/100! Check out Aura for AI-powered skincare.`,
+                  });
+                } else {
+                  await navigator.clipboard.writeText(
+                    `My skin health score is ${analysis.health_score}/100! Check out Aura for AI-powered skincare.`
+                  );
+                  alert("Copied to clipboard!");
+                }
+              } catch {
+                // User cancelled share
+              } finally {
+                setSharing(false);
+              }
+            }}
+            disabled={sharing}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-charcoal font-semibold hover:bg-gold-light transition-colors text-sm"
+          >
+            {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            Share
+          </button>
+        </div>
+      </div>
 
       {/* CTA */}
       <div className="flex flex-col sm:flex-row gap-3">
