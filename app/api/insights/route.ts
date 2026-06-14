@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
+import { rateLimit } from "@/lib/rate-limit";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
@@ -27,6 +28,14 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { ok } = rateLimit(`insights:${user.id}`, 15, 60_000);
+    if (!ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a minute." },
+        { status: 429 }
+      );
     }
 
     // Get last 5 analyses for trend

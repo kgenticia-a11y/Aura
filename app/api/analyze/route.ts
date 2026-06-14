@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
+import { rateLimit } from "@/lib/rate-limit";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
@@ -66,6 +67,14 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { ok } = rateLimit(`analyze:${user.id}`, 10, 60_000);
+    if (!ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a minute." },
+        { status: 429 }
+      );
     }
 
     // Parse request

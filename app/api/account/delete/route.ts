@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(_request: NextRequest) {
   const cookieStore = await cookies();
@@ -32,6 +33,14 @@ export async function POST(_request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { ok } = rateLimit(`delete:${user.id}`, 3, 300_000);
+  if (!ok) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please wait a few minutes." },
+      { status: 429 }
+    );
   }
 
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

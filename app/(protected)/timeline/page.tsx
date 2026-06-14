@@ -5,6 +5,9 @@ import {
   FlaskConical,
   Star,
   TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
   ChevronLeft,
 } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +16,65 @@ interface TimelineEvent {
   type: "analysis" | "routine" | "feedback";
   date: string;
   data: Record<string, unknown>;
+}
+
+interface ConcernEntry {
+  name: string;
+  severity: string;
+}
+
+interface ConcernTrend {
+  name: string;
+  direction: "improving" | "worsening" | "stable" | "new" | "resolved";
+  fromSeverity?: string;
+  toSeverity?: string;
+}
+
+const SEVERITY_RANK: Record<string, number> = {
+  significant: 3,
+  moderate: 2,
+  mild: 1,
+};
+
+function computeConcernTrends(
+  analyses: Array<{ concerns: ConcernEntry[]; created_at: string }>
+): ConcernTrend[] {
+  if (analyses.length < 2) return [];
+
+  const latest = analyses[0];
+  const previous = analyses[1];
+
+  const latestMap = new Map(
+    (latest.concerns || []).map((c) => [c.name.toLowerCase(), c])
+  );
+  const previousMap = new Map(
+    (previous.concerns || []).map((c) => [c.name.toLowerCase(), c])
+  );
+
+  const trends: ConcernTrend[] = [];
+
+  for (const [key, curr] of latestMap) {
+    const prev = previousMap.get(key);
+    if (!prev) {
+      trends.push({ name: curr.name, direction: "new", toSeverity: curr.severity });
+    } else {
+      const diff = (SEVERITY_RANK[curr.severity] || 0) - (SEVERITY_RANK[prev.severity] || 0);
+      trends.push({
+        name: curr.name,
+        direction: diff < 0 ? "improving" : diff > 0 ? "worsening" : "stable",
+        fromSeverity: prev.severity,
+        toSeverity: curr.severity,
+      });
+    }
+  }
+
+  for (const [key, prev] of previousMap) {
+    if (!latestMap.has(key)) {
+      trends.push({ name: prev.name, direction: "resolved", fromSeverity: prev.severity });
+    }
+  }
+
+  return trends;
 }
 
 export default async function TimelinePage() {
@@ -85,6 +147,75 @@ export default async function TimelinePage() {
       <p className="text-muted-foreground mb-10">
         Your complete skincare history in one place.
       </p>
+
+      {/* Concern Trends */}
+      {analyses && analyses.length >= 2 && (() => {
+        const trends = computeConcernTrends(
+          analyses.map((a) => ({
+            concerns: (a.concerns as ConcernEntry[]) || [],
+            created_at: a.created_at,
+          }))
+        );
+
+        if (trends.length === 0) return null;
+
+        const improving = trends.filter((t) => t.direction === "improving" || t.direction === "resolved");
+        const worsening = trends.filter((t) => t.direction === "worsening" || t.direction === "new");
+        const stable = trends.filter((t) => t.direction === "stable");
+
+        return (
+          <div className="p-5 rounded-2xl border border-border/50 bg-card/50 mb-8">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-gold" />
+              Concern Trends
+              <span className="text-xs text-muted-foreground font-normal ml-auto">
+                vs. previous analysis
+              </span>
+            </h3>
+            <div className="space-y-2">
+              {improving.map((t) => (
+                <div key={t.name} className="flex items-center gap-2 text-sm">
+                  {t.direction === "resolved" ? (
+                    <Sparkles className="w-4 h-4 text-green-400 shrink-0" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 text-green-400 shrink-0" />
+                  )}
+                  <span className="font-medium">{t.name}</span>
+                  <span className="text-xs text-green-400">
+                    {t.direction === "resolved"
+                      ? `resolved (was ${t.fromSeverity})`
+                      : `${t.fromSeverity} → ${t.toSeverity}`}
+                  </span>
+                </div>
+              ))}
+              {worsening.map((t) => (
+                <div key={t.name} className="flex items-center gap-2 text-sm">
+                  {t.direction === "new" ? (
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                  ) : (
+                    <TrendingUp className="w-4 h-4 text-red-400 shrink-0" />
+                  )}
+                  <span className="font-medium">{t.name}</span>
+                  <span className={`text-xs ${t.direction === "new" ? "text-amber-400" : "text-red-400"}`}>
+                    {t.direction === "new"
+                      ? `new (${t.toSeverity})`
+                      : `${t.fromSeverity} → ${t.toSeverity}`}
+                  </span>
+                </div>
+              ))}
+              {stable.map((t) => (
+                <div key={t.name} className="flex items-center gap-2 text-sm">
+                  <Minus className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{t.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    stable ({t.toSeverity})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {events.length === 0 ? (
         <div className="text-center py-16">
