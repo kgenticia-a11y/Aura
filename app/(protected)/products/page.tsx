@@ -14,6 +14,7 @@ import {
   Package,
   Heart,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -25,6 +26,7 @@ interface Product {
   price_tier: string;
   description: string;
   key_ingredients: string[];
+  skin_types: string[];
 }
 
 interface Review {
@@ -48,6 +50,7 @@ export default function ProductsPage() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
   const [allergies, setAllergies] = useState<string[]>([]);
+  const [skinType, setSkinType] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -61,10 +64,10 @@ export default function ProductsPage() {
     } = await supabase.auth.getUser();
     setUserId(user?.id ?? null);
 
-    const [{ data: prods }, { data: revs }, { data: favs }, { data: skinProfile }] = await Promise.all([
+    const [{ data: prods }, { data: revs }, { data: favs }, { data: skinProfile }, { data: latestAnalysis }] = await Promise.all([
       supabase
         .from("products")
-        .select("id, name, brand, category, price_tier, description, key_ingredients")
+        .select("id, name, brand, category, price_tier, description, key_ingredients, skin_types")
         .order("category", { ascending: true }),
       supabase
         .from("product_reviews")
@@ -82,12 +85,22 @@ export default function ProductsPage() {
             .eq("user_id", user.id)
             .single()
         : Promise.resolve({ data: null }),
+      user
+        ? supabase
+            .from("skin_analyses")
+            .select("skin_type")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single()
+        : Promise.resolve({ data: null }),
     ]);
 
     if (prods) setProducts(prods);
     if (revs) setReviews(revs);
     if (favs) setFavorites(new Set(favs.map((f) => f.product_id)));
     if (skinProfile?.allergies) setAllergies(skinProfile.allergies);
+    if (latestAnalysis?.skin_type) setSkinType(latestAnalysis.skin_type);
     setLoading(false);
   }
 
@@ -187,11 +200,19 @@ export default function ProductsPage() {
   }
 
   const categories = [...new Set(products.map((p) => p.category))];
+  const forYouProducts = skinType
+    ? products.filter(
+        (p) =>
+          p.skin_types?.includes(skinType) || p.skin_types?.includes("all")
+      )
+    : [];
   const filtered =
     filter === "all"
       ? products
       : filter === "favorites"
       ? products.filter((p) => favorites.has(p.id))
+      : filter === "for-you"
+      ? forYouProducts
       : products.filter((p) => p.category === filter);
 
   if (loading) {
@@ -221,6 +242,19 @@ export default function ProductsPage() {
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">
+        {skinType && (
+          <button
+            onClick={() => setFilter("for-you")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+              filter === "for-you"
+                ? "bg-gold text-charcoal"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="w-3 h-3" />
+            For You ({forYouProducts.length})
+          </button>
+        )}
         <button
           onClick={() => setFilter("all")}
           className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${

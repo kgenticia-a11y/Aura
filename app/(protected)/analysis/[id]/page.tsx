@@ -55,6 +55,7 @@ export default function AnalysisPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [benchmark, setBenchmark] = useState<{ avg_score: number; sample_size: number } | null>(null);
+  const [previousScore, setPreviousScore] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadOrAnalyze() {
@@ -133,6 +134,31 @@ export default function AnalysisPage() {
     loadBenchmark();
   }, []);
 
+  useEffect(() => {
+    async function loadPreviousScore() {
+      if (!analysis) return;
+
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("skin_analyses")
+        .select("health_score, created_at")
+        .eq("user_id", user.id)
+        .lt("created_at", analysis.created_at)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data) setPreviousScore(data.health_score);
+    }
+
+    loadPreviousScore();
+  }, [analysis]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -194,6 +220,17 @@ export default function AnalysisPage() {
         <ChevronLeft className="w-4 h-4" />
         Dashboard
       </Link>
+
+      {/* Progress Celebration */}
+      {previousScore !== null && analysis.health_score > previousScore && (
+        <div className="flex items-center gap-3 mb-6 p-4 rounded-2xl border border-gold/20 bg-gradient-to-r from-rose/10 via-card to-peach/10">
+          <Sparkles className="w-5 h-5 text-gold shrink-0" />
+          <p className="text-sm font-medium">
+            🎉 Up {analysis.health_score - previousScore} points since your
+            last analysis — your skin is trending in the right direction!
+          </p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="mb-8">
