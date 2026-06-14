@@ -189,9 +189,24 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+      if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith(".heic")) {
+        setError("Please upload a JPEG, PNG, WebP, or HEIC image.");
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Photo must be under 10 MB.");
+        return;
+      }
+
+      setError(null);
+
       // Strip EXIF by re-rendering through canvas
       const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
         if (!canvasRef.current) return;
         const canvas = canvasRef.current;
         canvas.width = img.naturalWidth;
@@ -216,7 +231,11 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
           0.92
         );
       };
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        setError("Could not read this image file. Try a different photo.");
+      };
+      img.src = objectUrl;
     },
     []
   );

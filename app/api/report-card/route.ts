@@ -3,6 +3,15 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { rateLimit } from "@/lib/rate-limit";
 
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 export async function GET(request: Request) {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -66,7 +75,7 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .single();
 
-  const firstName = profile?.full_name?.split(" ")[0] || "Aura User";
+  const firstName = escapeXml(profile?.full_name?.split(" ")[0] || "Aura User");
   const date = new Date(analysis.created_at).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -78,7 +87,10 @@ export async function GET(request: Request) {
   const score = analysis.health_score;
   const scoreColor = score > 70 ? "#4ade80" : score > 40 ? "#D4AF37" : "#ef4444";
   const raw = analysis.raw_response as Record<string, unknown>;
-  const summary = (raw?.overall_summary as string) || "";
+  const summaryRaw = (raw?.overall_summary as string) || "";
+  const summary = escapeXml(summaryRaw.length > 80 ? summaryRaw.slice(0, 80) + "..." : summaryRaw);
+  const skinType = escapeXml(analysis.skin_type as string);
+  const hydration = escapeXml(analysis.hydration_level as string);
 
   const severityColor = (s: string) =>
     s === "significant" ? "#ef4444" : s === "moderate" ? "#f59e0b" : "#4ade80";
@@ -113,9 +125,9 @@ export async function GET(request: Request) {
 
   <!-- Skin Info -->
   <text x="170" y="110" font-family="system-ui, sans-serif" font-size="11" fill="#8888aa">Skin Type</text>
-  <text x="170" y="130" font-family="system-ui, sans-serif" font-size="16" fill="white" font-weight="600" text-transform="capitalize">${analysis.skin_type}</text>
+  <text x="170" y="130" font-family="system-ui, sans-serif" font-size="16" fill="white" font-weight="600" text-transform="capitalize">${skinType}</text>
   <text x="170" y="155" font-family="system-ui, sans-serif" font-size="11" fill="#8888aa">Hydration</text>
-  <text x="170" y="175" font-family="system-ui, sans-serif" font-size="16" fill="white" font-weight="600" text-transform="capitalize">${analysis.hydration_level}</text>
+  <text x="170" y="175" font-family="system-ui, sans-serif" font-size="16" fill="white" font-weight="600" text-transform="capitalize">${hydration}</text>
 
   <!-- Divider -->
   <line x1="30" y1="205" x2="570" y2="205" stroke="#333355" stroke-width="1"/>
@@ -126,8 +138,8 @@ export async function GET(request: Request) {
     .map(
       (c, i) =>
         `<circle cx="42" cy="${255 + i * 28}" r="4" fill="${severityColor(c.severity)}"/>
-    <text x="54" y="${259 + i * 28}" font-family="system-ui, sans-serif" font-size="13" fill="white">${c.name}</text>
-    <text x="570" y="${259 + i * 28}" font-family="system-ui, sans-serif" font-size="11" fill="#8888aa" text-anchor="end">${c.severity}</text>`
+    <text x="54" y="${259 + i * 28}" font-family="system-ui, sans-serif" font-size="13" fill="white">${escapeXml(c.name)}</text>
+    <text x="570" y="${259 + i * 28}" font-family="system-ui, sans-serif" font-size="11" fill="#8888aa" text-anchor="end">${escapeXml(c.severity)}</text>`
     )
     .join("\n  ")}
 
@@ -136,7 +148,7 @@ export async function GET(request: Request) {
       ? `<!-- Summary -->
   <line x1="30" y1="340" x2="570" y2="340" stroke="#333355" stroke-width="1"/>
   <text x="30" y="362" font-family="system-ui, sans-serif" font-size="10" fill="#8888aa">
-    <tspan x="30">${summary.length > 80 ? summary.slice(0, 80) + "..." : summary}</tspan>
+    <tspan x="30">${summary}</tspan>
   </text>`
       : ""
   }

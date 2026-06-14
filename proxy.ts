@@ -37,14 +37,14 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Redirect unauthenticated users away from protected routes
-  const isProtectedRoute = request.nextUrl.pathname.startsWith("/(protected)") ||
-    request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/capture") ||
-    request.nextUrl.pathname.startsWith("/analysis") ||
-    request.nextUrl.pathname.startsWith("/routine") ||
-    request.nextUrl.pathname.startsWith("/onboarding") ||
-    request.nextUrl.pathname.startsWith("/timeline") ||
-    request.nextUrl.pathname.startsWith("/settings");
+  const protectedPrefixes = [
+    "/dashboard", "/capture", "/analysis", "/routine",
+    "/onboarding", "/timeline", "/settings", "/compare",
+    "/products", "/feedback", "/admin",
+  ];
+  const isProtectedRoute = protectedPrefixes.some((p) =>
+    request.nextUrl.pathname.startsWith(p)
+  );
 
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();

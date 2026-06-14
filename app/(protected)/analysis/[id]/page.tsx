@@ -415,7 +415,7 @@ export default function AnalysisPage() {
               a.href = url;
               a.download = `aura-report-${new Date(analysis.created_at).toISOString().split("T")[0]}.svg`;
               a.click();
-              URL.revokeObjectURL(url);
+              setTimeout(() => URL.revokeObjectURL(url), 5000);
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gold/30 text-foreground hover:bg-gold/10 transition-colors text-sm"
           >

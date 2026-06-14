@@ -80,16 +80,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ cleaned: 0, message: "No expired photos found." });
   }
 
-  // Delete storage files
-  const storagePaths = expiredPhotos.map((p) => p.storage_path);
-  await admin.storage.from("selfies").remove(storagePaths);
-
-  // Soft-delete the photo records
+  // Soft-delete the DB records first so broken images can't appear
   const ids = expiredPhotos.map((p) => p.id);
-  await admin
+  const { error: updateError } = await admin
     .from("skin_photos")
     .update({ deleted_at: new Date().toISOString() })
     .in("id", ids);
+
+  if (updateError) {
+    return NextResponse.json(
+      { error: "Failed to mark photos as deleted." },
+      { status: 500 }
+    );
+  }
+
+  // Then remove storage files (safe: DB already marks them deleted)
+  const storagePaths = expiredPhotos.map((p) => p.storage_path);
+  await admin.storage.from("selfies").remove(storagePaths);
 
   return NextResponse.json({
     cleaned: expiredPhotos.length,

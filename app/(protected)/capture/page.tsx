@@ -26,6 +26,11 @@ export default function CapturePage() {
         return;
       }
 
+      if (blob.size > 10 * 1024 * 1024) {
+        toast.error("Photo is too large (max 10 MB). Please try again.");
+        return;
+      }
+
       // Generate unique filename
       const fileId = crypto.randomUUID();
       const storagePath = `${user.id}/${fileId}.webp`;
