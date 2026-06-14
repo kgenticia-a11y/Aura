@@ -23,6 +23,7 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
 
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -32,6 +33,18 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [flash, setFlash] = useState(false);
+
+  // Open the device's native camera app (most reliable on mobile browsers)
+  const openNativeCamera = useCallback(() => {
+    setError(null);
+    captureInputRef.current?.click();
+  }, []);
+
+  // Use the in-page live camera preview (best on desktop/webcam)
+  const isMobileDevice = useCallback(() => {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }, []);
 
   // Start camera with high-resolution constraints
   const startCamera = useCallback(async (mode: "user" | "environment" = facingMode) => {
@@ -252,7 +265,11 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
     setCapturedImage(null);
     setCapturedBlob(null);
     setCapturedResolution("");
-    startCamera();
+    if (isMobileDevice()) {
+      openNativeCamera();
+    } else {
+      startCamera();
+    }
   };
 
   return (
@@ -263,6 +280,15 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/heic,image/webp"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+      {/* Triggers the device's native camera app directly on mobile browsers */}
+      <input
+        ref={captureInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
         onChange={handleFileUpload}
         className="hidden"
       />
@@ -366,7 +392,7 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
 
             <div className="flex flex-col gap-3 w-full max-w-xs">
               <Button
-                onClick={() => startCamera()}
+                onClick={() => (isMobileDevice() ? openNativeCamera() : startCamera())}
                 className="bg-gold text-charcoal hover:bg-gold-light font-semibold glow-gold transition-all duration-300"
               >
                 <Camera className="w-4 h-4 mr-2" />
