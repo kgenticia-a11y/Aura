@@ -39,14 +39,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --color-gold: #D98B9A;
-  --color-gold-light: #F0AEB8;
+  --color-gold: #C2607A;
+  --color-gold-light: #D9839A;
   --color-cream: #FFF8F4;
-  --color-rose: #F4A6C6;
-  --color-lavender: #C9B6F2;
-  --color-peach: #FBC9A8;
-  --color-charcoal: #4A2E3A;
-  --color-charcoal-light: #6B4356;
+  --color-rose: #E08CAE;
+  --color-lavender: #A98FD2;
+  --color-peach: #E8A788;
+  --color-charcoal: #3A2030;
+  --color-charcoal-light: #5A3548;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -58,38 +58,38 @@
 
 /* Aura Bloom Theme — light, warm and feminine — default */
 :root {
-  --background: oklch(0.99 0.008 40);
-  --foreground: oklch(0.32 0.04 350);
+  --background: oklch(0.98 0.012 30);
+  --foreground: oklch(0.26 0.05 345);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.32 0.04 350);
+  --card-foreground: oklch(0.26 0.05 345);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.32 0.04 350);
-  --primary: oklch(0.72 0.10 5);
+  --popover-foreground: oklch(0.26 0.05 345);
+  --primary: oklch(0.56 0.16 5);
   --primary-foreground: oklch(0.99 0.008 40);
-  --secondary: oklch(0.95 0.02 320);
-  --secondary-foreground: oklch(0.35 0.05 340);
-  --muted: oklch(0.96 0.015 30);
-  --muted-foreground: oklch(0.55 0.03 340);
-  --accent: oklch(0.88 0.06 300);
-  --accent-foreground: oklch(0.35 0.05 340);
+  --secondary: oklch(0.92 0.03 320);
+  --secondary-foreground: oklch(0.30 0.06 340);
+  --muted: oklch(0.94 0.02 30);
+  --muted-foreground: oklch(0.48 0.04 340);
+  --accent: oklch(0.78 0.09 300);
+  --accent-foreground: oklch(0.28 0.06 340);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.02 30);
-  --input: oklch(0.96 0.015 30);
-  --ring: oklch(0.72 0.10 5);
-  --chart-1: oklch(0.72 0.10 5);
-  --chart-2: oklch(0.80 0.08 330);
-  --chart-3: oklch(0.78 0.07 290);
-  --chart-4: oklch(0.85 0.07 60);
-  --chart-5: oklch(0.65 0.04 340);
+  --border: oklch(0.88 0.025 30);
+  --input: oklch(0.94 0.02 30);
+  --ring: oklch(0.56 0.16 5);
+  --chart-1: oklch(0.56 0.16 5);
+  --chart-2: oklch(0.68 0.10 330);
+  --chart-3: oklch(0.65 0.09 290);
+  --chart-4: oklch(0.72 0.10 60);
+  --chart-5: oklch(0.50 0.06 340);
   --radius: 1rem;
-  --sidebar: oklch(0.99 0.008 40);
-  --sidebar-foreground: oklch(0.32 0.04 350);
-  --sidebar-primary: oklch(0.72 0.10 5);
+  --sidebar: oklch(0.98 0.012 30);
+  --sidebar-foreground: oklch(0.26 0.05 345);
+  --sidebar-primary: oklch(0.56 0.16 5);
   --sidebar-primary-foreground: oklch(0.99 0.008 40);
-  --sidebar-accent: oklch(0.95 0.02 320);
-  --sidebar-accent-foreground: oklch(0.35 0.05 340);
-  --sidebar-border: oklch(0.91 0.02 30);
-  --sidebar-ring: oklch(0.72 0.10 5);
+  --sidebar-accent: oklch(0.92 0.03 320);
+  --sidebar-accent-foreground: oklch(0.30 0.06 340);
+  --sidebar-border: oklch(0.88 0.025 30);
+  --sidebar-ring: oklch(0.56 0.16 5);
 }
 
 /* Aura Bloom Theme — dark variant (optional, via theme toggle) */
@@ -160,17 +160,17 @@
   }
 
   .glow-gold {
-    box-shadow: 0 0 20px oklch(0.72 0.10 5 / 0.18),
-                0 0 60px oklch(0.88 0.06 300 / 0.12);
+    box-shadow: 0 0 20px oklch(0.56 0.16 5 / 0.22),
+                0 0 60px oklch(0.78 0.09 300 / 0.14);
   }
 
   .glow-rose {
-    box-shadow: 0 0 24px oklch(0.80 0.08 330 / 0.25),
-                0 0 64px oklch(0.88 0.06 300 / 0.15);
+    box-shadow: 0 0 24px oklch(0.68 0.10 330 / 0.28),
+                0 0 64px oklch(0.78 0.09 300 / 0.16);
   }
 
   .text-gradient-gold {
-    background: linear-gradient(135deg, #D98B9A 0%, #C9B6F2 50%, #FBC9A8 100%);
+    background: linear-gradient(135deg, #C2607A 0%, #A98FD2 50%, #E8A788 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
