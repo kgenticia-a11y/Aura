@@ -80,7 +80,7 @@ export default function CapturePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 page-transition">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12 page-transition">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">
           Capture Your <span className="text-gradient-gold">Skin</span>

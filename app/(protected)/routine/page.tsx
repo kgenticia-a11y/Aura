@@ -245,7 +245,7 @@ export default function RoutinePage() {
 
   if (!routine) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-16 text-center page-transition">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center page-transition">
         <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-6">
           <Sparkles className="w-10 h-10 text-gold" />
         </div>
@@ -285,7 +285,7 @@ export default function RoutinePage() {
       : routine.weekly;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-12 page-transition">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 page-transition">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-1">

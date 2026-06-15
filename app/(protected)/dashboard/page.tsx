@@ -200,7 +200,7 @@ export default async function DashboardPage() {
   const seasonalTip = getSeasonalTip();
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12 page-transition">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 page-transition">
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold mb-2">
@@ -485,7 +485,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 gap-4 mb-8">
+      <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 mb-8">
         <MotionCard>
           <Link
             href="/capture"

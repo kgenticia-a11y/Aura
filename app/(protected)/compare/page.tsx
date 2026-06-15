@@ -94,7 +94,7 @@ export default function ComparePage() {
 
   if (photos.length < 2) {
     return (
-      <div className="max-w-md mx-auto px-6 py-16 text-center page-transition">
+      <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center page-transition">
         <ImageOff className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
         <h1 className="text-2xl font-bold mb-2">Not Enough Photos Yet</h1>
         <p className="text-muted-foreground mb-6">
@@ -113,7 +113,7 @@ export default function ComparePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12 page-transition">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 page-transition">
       <Link
         href="/timeline"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"

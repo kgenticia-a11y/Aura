@@ -144,7 +144,7 @@ export default function FeedbackPage() {
 
   if (!routineId) {
     return (
-      <div className="max-w-lg mx-auto px-6 py-16 text-center page-transition">
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center page-transition">
         <Sparkles className="w-12 h-12 text-gold mx-auto mb-4" />
         <h1 className="text-2xl font-bold mb-2">No Active Routine</h1>
         <p className="text-muted-foreground mb-6">
@@ -162,7 +162,7 @@ export default function FeedbackPage() {
 
   if (alreadySubmitted) {
     return (
-      <div className="max-w-lg mx-auto px-6 py-16 text-center page-transition">
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center page-transition">
         <Check className="w-12 h-12 text-green-400 mx-auto mb-4" />
         <h1 className="text-2xl font-bold mb-2">Feedback Submitted</h1>
         <p className="text-muted-foreground mb-6">
@@ -190,7 +190,7 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-6 py-12 page-transition">
+    <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12 page-transition">
       <Link
         href="/routine"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
