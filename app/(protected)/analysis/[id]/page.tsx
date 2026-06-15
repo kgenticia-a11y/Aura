@@ -15,6 +15,7 @@ import {
   Info,
   Share2,
   Download,
+  Stethoscope,
 } from "lucide-react";
 
 interface Concern {
@@ -394,6 +395,39 @@ export default function AnalysisPage() {
           </div>
         </div>
       )}
+
+      {/* Dermatologist Escalation */}
+      {(() => {
+        const hasSignificantConcern = analysis.concerns?.some(
+          (c) => c.severity === "significant"
+        );
+        return (
+          <div
+            className={`p-5 rounded-2xl border mb-6 ${
+              hasSignificantConcern
+                ? "border-rose/40 bg-rose/5"
+                : "border-border/50 bg-card/50"
+            }`}
+          >
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-gold" />
+              Need a Human Opinion?
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              {hasSignificantConcern
+                ? "One or more concerns in this analysis are flagged as significant. If you'd like a dermatologist to weigh in, you can request a review below."
+                : "If the AI analysis doesn't fully address what you're seeing, a dermatologist can review your case directly."}
+            </p>
+            <Link
+              href={`/derm?analysis_id=${analysis.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gold/30 text-foreground hover:bg-gold/10 transition-colors text-sm"
+            >
+              <Stethoscope className="w-4 h-4" />
+              Request Dermatologist Review
+            </Link>
+          </div>
+        );
+      })()}
 
       {/* Share Report Card */}
       <div className="p-5 rounded-2xl border border-border/50 bg-card/50 mb-6">

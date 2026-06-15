@@ -15,8 +15,11 @@ import {
   Heart,
   AlertTriangle,
   Sparkles,
+  Tag,
+  PiggyBank,
 } from "lucide-react";
 import Link from "next/link";
+import { findBudgetAlternatives } from "@/lib/product-dupes";
 
 interface Product {
   id: string;
@@ -51,6 +54,7 @@ export default function ProductsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [allergies, setAllergies] = useState<string[]>([]);
   const [skinType, setSkinType] = useState<string | null>(null);
+  const [dupesOpenFor, setDupesOpenFor] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -358,6 +362,24 @@ export default function ProductsPage() {
                       </span>
                     </div>
                   )}
+
+                  {product.price_tier !== "drugstore" && (
+                    <button
+                      onClick={() =>
+                        setDupesOpenFor(dupesOpenFor === product.id ? null : product.id)
+                      }
+                      className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-green-400 hover:text-green-300 transition-colors"
+                    >
+                      <PiggyBank className="w-3.5 h-3.5" />
+                      {dupesOpenFor === product.id
+                        ? "Hide budget alternatives"
+                        : "Find a budget alternative"}
+                    </button>
+                  )}
+
+                  {dupesOpenFor === product.id && (
+                    <BudgetAlternatives product={product} catalog={products} />
+                  )}
                 </div>
 
                 <div className="shrink-0 text-right flex flex-col items-end gap-2">
@@ -507,6 +529,64 @@ export default function ProductsPage() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function BudgetAlternatives({
+  product,
+  catalog,
+}: {
+  product: Product;
+  catalog: Product[];
+}) {
+  const alternatives = findBudgetAlternatives(product, catalog).slice(0, 3);
+
+  if (alternatives.length === 0) {
+    return (
+      <div className="mt-3 pt-3 border-t border-border/30 text-xs text-muted-foreground">
+        No catalog dupes found yet for this product — check back as we add more.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30 space-y-2">
+      <p className="text-xs font-medium text-green-400 flex items-center gap-1.5">
+        <PiggyBank className="w-3.5 h-3.5" />
+        Similar ingredients, lower price
+      </p>
+      {alternatives.map((alt) => {
+        const shared = product.key_ingredients.filter((ing) =>
+          alt.key_ingredients.some(
+            (a) => a.toLowerCase().trim() === ing.toLowerCase().trim()
+          )
+        );
+        return (
+          <div
+            key={alt.id}
+            className="p-3 rounded-lg border border-green-400/20 bg-green-400/5"
+          >
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2">
+                <Tag className="w-3.5 h-3.5 text-green-400" />
+                <span className="text-sm font-medium">{alt.name}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-400">
+                  {alt.price_tier}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-1">
+              {alt.brand} · {alt.category}
+            </p>
+            {shared.length > 0 && (
+              <p className="text-xs text-muted-foreground/70">
+                Shares {shared.join(", ")} with {product.name}
+              </p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

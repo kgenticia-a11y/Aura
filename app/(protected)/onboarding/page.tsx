@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const SKIN_TYPES = ["Oily", "Dry", "Combination", "Normal", "Sensitive", "Not sure"];
 const AGE_RANGES = ["Under 18", "18-24", "25-34", "35-44", "45-54", "55+"];
@@ -48,6 +48,38 @@ const BUDGET_OPTIONS = [
   { value: "luxury", label: "Luxury", description: "$50-150 per product" },
   { value: "no-limit", label: "No Limit", description: "Best available, any price" },
 ];
+const FITZPATRICK_OPTIONS = [
+  {
+    value: "I",
+    label: "Type I",
+    description: "Very fair skin, always burns, never tans",
+  },
+  {
+    value: "II",
+    label: "Type II",
+    description: "Fair skin, usually burns, tans minimally",
+  },
+  {
+    value: "III",
+    label: "Type III",
+    description: "Medium skin, sometimes burns, tans gradually",
+  },
+  {
+    value: "IV",
+    label: "Type IV",
+    description: "Olive/light brown skin, rarely burns, tans easily",
+  },
+  {
+    value: "V",
+    label: "Type V",
+    description: "Brown skin, very rarely burns, tans deeply",
+  },
+  {
+    value: "VI",
+    label: "Type VI",
+    description: "Deeply pigmented dark brown to black skin, never burns",
+  },
+];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -67,6 +99,7 @@ export default function OnboardingPage() {
     diet: "",
   });
   const [budget, setBudget] = useState("mid-range");
+  const [fitzpatrick, setFitzpatrick] = useState("");
 
   function nextStep() {
     setDirection("forward");
@@ -114,6 +147,7 @@ export default function OnboardingPage() {
         skin_goals: goals,
         lifestyle,
         budget_preference: budget,
+        fitzpatrick_scale: fitzpatrick || null,
         onboarding_completed: true,
       });
 
@@ -179,6 +213,9 @@ export default function OnboardingPage() {
             <StepLifestyle lifestyle={lifestyle} setLifestyle={setLifestyle} />
           )}
           {step === 4 && (
+            <StepFitzpatrick fitzpatrick={fitzpatrick} setFitzpatrick={setFitzpatrick} />
+          )}
+          {step === 5 && (
             <StepBudget budget={budget} setBudget={setBudget} />
           )}
         </div>
@@ -488,6 +525,61 @@ function LifestyleQuestion({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function StepFitzpatrick({
+  fitzpatrick,
+  setFitzpatrick,
+}: {
+  fitzpatrick: string;
+  setFitzpatrick: (v: string) => void;
+}) {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold mb-1">Your Skin Tone</h2>
+      <p className="text-muted-foreground mb-8">
+        This helps our AI give you accurate, inclusive analysis — calibrated
+        for your skin, not just lighter tones. Pick the description that best
+        matches how your skin responds to sun exposure.
+      </p>
+
+      <div className="space-y-3">
+        {FITZPATRICK_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setFitzpatrick(opt.value)}
+            className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
+              fitzpatrick === opt.value
+                ? "border-gold bg-gold/10 glow-gold"
+                : "border-border/50 hover:border-gold/30"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`font-semibold ${fitzpatrick === opt.value ? "text-gold" : ""}`}>
+                  {opt.label}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {opt.description}
+                </p>
+              </div>
+              {fitzpatrick === opt.value && (
+                <div className="w-6 h-6 rounded-full bg-gold flex items-center justify-center shrink-0">
+                  <Check className="w-4 h-4 text-charcoal" />
+                </div>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-muted-foreground mt-4">
+        Not sure? Pick the closest match — you can always update this later in
+        Settings, and it never affects anything but the accuracy of your
+        analysis.
+      </p>
     </div>
   );
 }
