@@ -8,8 +8,10 @@ import {
   Activity,
   ChevronLeft,
   AlertCircle,
+  Stethoscope,
 } from "lucide-react";
 import Link from "next/link";
+import { DermQueue } from "@/components/derm-queue";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -19,6 +21,12 @@ export default async function AdminPage() {
   } = await supabase.auth.getUser();
 
   if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
 
   // Aggregate stats
   const [
@@ -178,6 +186,17 @@ export default async function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Dermatologist Queue */}
+      {profile?.is_admin && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+            <Stethoscope className="w-4 h-4 text-gold" />
+            Dermatologist Review Queue
+          </h2>
+          <DermQueue />
+        </div>
+      )}
 
       {/* Recent Errors */}
       <div>

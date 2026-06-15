@@ -7,8 +7,24 @@ import { validateBody, analyzeSchema } from "@/lib/validation";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
-const ANALYSIS_PROMPT = `You are an expert cosmetic skin analyst. Analyze this facial photo for cosmetic skin attributes ONLY.
-You are NOT providing medical advice — this is purely cosmetic guidance.
+const FITZPATRICK_GUIDANCE: Record<string, string> = {
+  I: "Type I (very fair skin, always burns, never tans). Be alert for sun damage, redness, and visible capillaries, which are often more prominent on very fair skin.",
+  II: "Type II (fair skin, usually burns, tans minimally). Watch for sun damage, redness, and uneven tone from sun exposure.",
+  III: "Type III (medium skin, sometimes burns, tans gradually). Apply balanced assessment criteria across tone, texture, and pigmentation.",
+  IV: "Type IV (olive/light brown skin, rarely burns, tans easily). Post-inflammatory hyperpigmentation (dark marks left after blemishes heal) is common and should be distinguished from active concerns. Do not over-flag normal pigment variation as 'hyperpigmentation' unless there is clear evidence of dark spots distinct from surrounding skin.",
+  V: "Type V (brown skin, very rarely burns, tans deeply). Be precise about distinguishing post-inflammatory hyperpigmentation, acne scarring, and natural skin tone variation — these are frequently misidentified by AI models trained mostly on lighter skin. Do not default to 'uneven tone' or 'hyperpigmentation' findings unless clearly visible against the user's own baseline tone.",
+  VI: "Type VI (deeply pigmented dark brown to black skin, never burns). Calibrate all assessments (redness, dullness, hydration, pigmentation) to this skin tone specifically. Redness and erythema can look different on deep skin tones — look for changes in texture or sheen rather than assuming visible redness. Be precise about distinguishing post-inflammatory hyperpigmentation and acne scarring from natural tone variation.",
+};
+
+function buildAnalysisPrompt(fitzpatrickScale: string | null): string {
+  const toneGuidance = fitzpatrickScale && FITZPATRICK_GUIDANCE[fitzpatrickScale]
+    ? `\n\nIMPORTANT — INCLUSIVE ANALYSIS CONTEXT:
+This user has self-reported their skin as Fitzpatrick ${FITZPATRICK_GUIDANCE[fitzpatrickScale]}
+Calibrate every finding (tone, redness, hydration, pigmentation, evidence) to this skin tone. Never apply assumptions calibrated for lighter skin tones to this user. If a concern like "hyperpigmentation" or "redness" is reported, the evidence must describe something genuinely visible on THIS skin tone, not a generic assumption.`
+    : "";
+
+  return `You are an expert cosmetic skin analyst. Analyze this facial photo for cosmetic skin attributes ONLY.
+You are NOT providing medical advice — this is purely cosmetic guidance.${toneGuidance}
 
 Evaluate the following and respond ONLY with valid JSON (no markdown, no code fences):
 
@@ -36,6 +52,7 @@ Evaluate the following and respond ONLY with valid JSON (no markdown, no code fe
 
 Be thorough but honest. Only report what you can actually observe in the photo.
 If the photo quality or lighting is poor, note that in the summary and lower overall_confidence accordingly.`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,6 +139,15 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
+
+    // Fetch user's Fitzpatrick skin tone for inclusive, tone-aware analysis
+    const { data: skinProfile } = await supabase
+      .from("skin_profiles")
+      .select("fitzpatrick_scale")
+      .eq("user_id", user.id)
+      .single();
+
+    const analysisPrompt = buildAnalysisPrompt(skinProfile?.fitzpatrick_scale ?? null);
 
     // Get signed URL for the photo
     const { data: signedUrlData, error: signedError } = await supabase.storage
@@ -225,7 +251,7 @@ export async function POST(request: NextRequest) {
             {
               role: "user",
               parts: [
-                { text: ANALYSIS_PROMPT },
+                { text: analysisPrompt },
                 {
                   inlineData: {
                     mimeType,
