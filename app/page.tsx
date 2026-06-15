@@ -6,7 +6,7 @@ export default function LandingPage() {
   return (
     <main className="flex-1">
       {/* Hero Section */}
-      <section className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
+      <section className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 text-center overflow-hidden">
         {/* Background gradient orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-rose/20 blur-3xl" />
@@ -33,7 +33,7 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6">
             Your Skin,{" "}
             <span className="text-gradient-gold">Perfected</span>
           </h1>
@@ -61,9 +61,9 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 px-6">
+      <section className="py-16 sm:py-24 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-4">
             The Science of <span className="text-gradient-gold">Beautiful Skin</span>
           </h2>
           <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-16">
@@ -71,7 +71,7 @@ export default function LandingPage() {
             personalized to your skin&apos;s unique needs.
           </p>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid sm:grid-cols-2 gap-4 sm:gap-8">
             <FeatureCard
               icon={<Camera className="w-6 h-6" />}
               title="High-Resolution Analysis"
@@ -97,7 +97,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/50 py-8 px-6">
+      <footer className="border-t border-border/50 py-8 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Aura. All rights reserved.

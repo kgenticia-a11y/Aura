@@ -190,4 +190,16 @@
   .sparkle {
     animation: sparkle-float 4s ease-in-out infinite;
   }
+
+  /* Safe area for mobile bottom nav (iPhone notch/home indicator) */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Add bottom padding to main content on mobile so it's not hidden behind the fixed bottom nav */
+@media (max-width: 767px) {
+  main {
+    padding-bottom: 4.5rem;
+  }
 }

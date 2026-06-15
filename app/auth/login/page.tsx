@@ -1,20 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/events";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error === "auth_failed") {
+      toast.error("Email confirmation failed. Please try signing up again.");
+    }
+  }, [searchParams]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +53,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center min-h-screen px-6 py-12">
+    <main className="flex-1 flex items-center justify-center min-h-screen px-4 sm:px-6 py-8 sm:py-12">
       <div className="w-full max-w-md page-transition">
         {/* Logo */}
         <div className="text-center mb-10">
@@ -134,5 +142,19 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 text-gold animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
