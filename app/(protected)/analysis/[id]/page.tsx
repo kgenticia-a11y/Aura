@@ -191,10 +191,10 @@ export default function AnalysisPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6 text-center">
         <AlertTriangle className="w-12 h-12 text-amber-400" />
         <h2 className="text-xl font-bold">Analysis Error</h2>
-        <p className="text-muted-foreground">{error}</p>
+        <p className="text-muted-foreground max-w-md">{error}</p>
         <Link
           href="/capture"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-charcoal font-semibold hover:bg-gold-light transition-colors"
