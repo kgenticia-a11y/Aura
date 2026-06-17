@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
         overall_confidence: "medium",
         confidence_reason: "Lighting and resolution were adequate but not ideal for fine detail.",
         overall_summary:
-          "Your skin appears generally healthy with a combination skin type. The main areas to focus on are evening out skin tone and maintaining hydration, particularly in drier areas. A consistent routine with targeted ingredients would benefit your skin.",
+          "Our AI analysis is warming up — this is a sample result while we finish setup. Your photo was saved and you'll be able to run a real analysis shortly. Thank you for your patience!",
       };
 
       const { data: analysis, error: insertError } = await supabase
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
           health_score: mockAnalysis.health_score,
           environmental_factors: mockAnalysis.environmental_factors,
           raw_response: mockAnalysis,
-          model_version: "mock-dev",
+          model_version: "preview",
         })
         .select("id")
         .single();
