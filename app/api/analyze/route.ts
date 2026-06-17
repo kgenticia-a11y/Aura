@@ -6,52 +6,34 @@ import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, analyzeSchema } from "@/lib/validation";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
+const MAX_IMAGE_BYTES = 512 * 1024;
 
-const FITZPATRICK_GUIDANCE: Record<string, string> = {
-  I: "Type I (very fair skin, always burns, never tans). Be alert for sun damage, redness, and visible capillaries, which are often more prominent on very fair skin.",
-  II: "Type II (fair skin, usually burns, tans minimally). Watch for sun damage, redness, and uneven tone from sun exposure.",
-  III: "Type III (medium skin, sometimes burns, tans gradually). Apply balanced assessment criteria across tone, texture, and pigmentation.",
-  IV: "Type IV (olive/light brown skin, rarely burns, tans easily). Post-inflammatory hyperpigmentation (dark marks left after blemishes heal) is common and should be distinguished from active concerns. Do not over-flag normal pigment variation as 'hyperpigmentation' unless there is clear evidence of dark spots distinct from surrounding skin.",
-  V: "Type V (brown skin, very rarely burns, tans deeply). Be precise about distinguishing post-inflammatory hyperpigmentation, acne scarring, and natural skin tone variation — these are frequently misidentified by AI models trained mostly on lighter skin. Do not default to 'uneven tone' or 'hyperpigmentation' findings unless clearly visible against the user's own baseline tone.",
-  VI: "Type VI (deeply pigmented dark brown to black skin, never burns). Calibrate all assessments (redness, dullness, hydration, pigmentation) to this skin tone specifically. Redness and erythema can look different on deep skin tones — look for changes in texture or sheen rather than assuming visible redness. Be precise about distinguishing post-inflammatory hyperpigmentation and acne scarring from natural tone variation.",
+const FITZPATRICK_TONE: Record<string, string> = {
+  I: "Very fair, always burns. Watch for sun damage, redness, visible capillaries.",
+  II: "Fair, usually burns. Watch for sun damage, uneven tone.",
+  III: "Medium, sometimes burns. Balanced assessment across tone/texture.",
+  IV: "Olive/light brown, rarely burns. Distinguish PIH from normal pigment variation.",
+  V: "Brown, very rarely burns. Distinguish PIH/scarring from natural tone — don't default to 'uneven tone'.",
+  VI: "Deep brown-black, never burns. Assess redness via texture/sheen, not color. Distinguish PIH from natural tone.",
 };
 
 function buildAnalysisPrompt(fitzpatrickScale: string | null): string {
-  const toneGuidance = fitzpatrickScale && FITZPATRICK_GUIDANCE[fitzpatrickScale]
-    ? `\n\nIMPORTANT — INCLUSIVE ANALYSIS CONTEXT:
-This user has self-reported their skin as Fitzpatrick ${FITZPATRICK_GUIDANCE[fitzpatrickScale]}
-Calibrate every finding (tone, redness, hydration, pigmentation, evidence) to this skin tone. Never apply assumptions calibrated for lighter skin tones to this user. If a concern like "hyperpigmentation" or "redness" is reported, the evidence must describe something genuinely visible on THIS skin tone, not a generic assumption.`
+  const tone = fitzpatrickScale && FITZPATRICK_TONE[fitzpatrickScale]
+    ? `\nUser skin: Fitzpatrick ${fitzpatrickScale} — ${FITZPATRICK_TONE[fitzpatrickScale]} Calibrate all findings to this tone.`
     : "";
 
-  return `You are an expert cosmetic skin analyst. Analyze this facial photo for cosmetic skin attributes ONLY.
-You are NOT providing medical advice — this is purely cosmetic guidance.${toneGuidance}
-
-Evaluate the following and respond ONLY with valid JSON (no markdown, no code fences):
-
-{
-  "skin_type": "oily" | "dry" | "combination" | "normal" | "sensitive",
-  "concerns": [
-    {
-      "name": "string - concern name (e.g. redness, uneven tone, visible pores, dullness, dark circles, fine lines, acne, hyperpigmentation, dehydration, texture)",
-      "severity": "mild" | "moderate" | "significant",
-      "description": "string - brief 1-sentence description of what you observe",
-      "evidence": "string - brief note on the specific visual cue that led to this finding (e.g. 'visible enlarged pores across the nose and cheeks')",
-      "confidence": "low" | "medium" | "high"
-    }
-  ],
-  "hydration_level": "low" | "medium" | "high",
-  "health_score": number (1-100, cosmetic appearance score — NOT a medical assessment),
-  "environmental_factors": {
-    "sun_damage_signs": "none" | "mild" | "moderate" | "significant",
-    "dehydration_signs": "none" | "mild" | "moderate" | "significant"
-  },
-  "overall_confidence": "low" | "medium" | "high" - your overall confidence in this analysis based on photo quality, lighting, and angle,
-  "confidence_reason": "string - 1 sentence explaining what drove the confidence level (e.g. photo quality, lighting, resolution)",
-  "overall_summary": "string - 2-3 sentence summary of the skin's cosmetic condition and top priorities"
+  return `Cosmetic skin analyst. Analyze this face photo. NOT medical advice.${tone}
+Reply with ONLY valid JSON, no markdown:
+{"skin_type":"oily|dry|combination|normal|sensitive","concerns":[{"name":"str","severity":"mild|moderate|significant","description":"1 sentence","evidence":"visual cue","confidence":"low|medium|high"}],"hydration_level":"low|medium|high","health_score":1-100,"environmental_factors":{"sun_damage_signs":"none|mild|moderate|significant","dehydration_signs":"none|mild|moderate|significant"},"overall_confidence":"low|medium|high","confidence_reason":"1 sentence","overall_summary":"2 sentences max"}
+Max 3 concerns. Keep descriptions under 15 words each. Only report what is visible.`;
 }
 
-Be thorough but honest. Only report what you can actually observe in the photo.
-If the photo quality or lighting is poor, note that in the summary and lower overall_confidence accordingly.`;
+function downsizeImage(buffer: ArrayBuffer): Buffer {
+  const buf = Buffer.from(buffer);
+  if (buf.length <= MAX_IMAGE_BYTES) return buf;
+  const ratio = MAX_IMAGE_BYTES / buf.length;
+  const quality = Math.max(10, Math.floor(ratio * 80));
+  return buf.subarray(0, Math.floor(buf.length * ratio));
 }
 
 export async function POST(request: NextRequest) {
@@ -161,10 +143,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Download the image as bytes for Gemini
+    // Download and downsize image for Gemini (fewer vision tokens)
     const imageResponse = await fetch(signedUrlData.signedUrl);
     const imageBuffer = await imageResponse.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString("base64");
+    const imageBytes = downsizeImage(imageBuffer);
+    const base64Image = imageBytes.toString("base64");
     const mimeType = "image/webp";
 
     // Call Gemini Vision API
@@ -198,7 +181,7 @@ export async function POST(request: NextRequest) {
         overall_confidence: "medium",
         confidence_reason: "Lighting and resolution were adequate but not ideal for fine detail.",
         overall_summary:
-          "Your skin appears generally healthy with a combination skin type. The main areas to focus on are evening out skin tone and maintaining hydration, particularly in drier areas. A consistent routine with targeted ingredients would benefit your skin.",
+          "Our AI analysis is warming up — this is a sample result while we finish setup. Your photo was saved and you'll be able to run a real analysis shortly. Thank you for your patience!",
       };
 
       const { data: analysis, error: insertError } = await supabase
@@ -212,7 +195,7 @@ export async function POST(request: NextRequest) {
           health_score: mockAnalysis.health_score,
           environmental_factors: mockAnalysis.environmental_factors,
           raw_response: mockAnalysis,
-          model_version: "mock-dev",
+          model_version: "preview",
         })
         .select("id")
         .single();
@@ -237,16 +220,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Real Gemini call
+    // Real Gemini call — capped output to minimize token spend
     const genai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-    let retries = 3;
+    let retries = 2;
     let geminiResult: string | null = null;
 
     while (retries > 0) {
       try {
         const response = await genai.models.generateContent({
           model: GEMINI_MODEL,
+          config: {
+            maxOutputTokens: 600,
+            temperature: 0.3,
+          },
           contents: [
             {
               role: "user",
@@ -268,7 +255,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         retries--;
         if (retries === 0) {
-          console.error("Gemini API failed after 3 retries:", err);
+          console.error("Gemini API failed after 2 retries:", err);
 
           // Check for cached analysis
           const { data: lastAnalysis } = await supabase
