@@ -295,7 +295,10 @@ export async function POST(request: NextRequest) {
           }
 
           return NextResponse.json(
-            { error: "AI analysis temporarily unavailable. Please try again later." },
+            {
+              error:
+                "AI analysis is temporarily unavailable — our team has been notified and is on it. Your photo was saved, so please try again in a little while.",
+            },
             { status: 503 }
           );
         }
