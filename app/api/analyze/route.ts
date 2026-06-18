@@ -5,8 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, analyzeSchema } from "@/lib/validation";
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const MAX_IMAGE_BYTES = 512 * 1024;
+const GEMINI_MODEL = "gemini-2.0-flash-lite";
 
 const FITZPATRICK_TONE: Record<string, string> = {
   I: "Very fair, always burns. Watch for sun damage, redness, visible capillaries.",
@@ -28,13 +27,6 @@ Reply with ONLY valid JSON, no markdown:
 Max 3 concerns. Keep descriptions under 15 words each. Only report what is visible.`;
 }
 
-function downsizeImage(buffer: ArrayBuffer): Buffer {
-  const buf = Buffer.from(buffer);
-  if (buf.length <= MAX_IMAGE_BYTES) return buf;
-  const ratio = MAX_IMAGE_BYTES / buf.length;
-  const quality = Math.max(10, Math.floor(ratio * 80));
-  return buf.subarray(0, Math.floor(buf.length * ratio));
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -143,12 +135,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Download and downsize image for Gemini (fewer vision tokens)
     const imageResponse = await fetch(signedUrlData.signedUrl);
     const imageBuffer = await imageResponse.arrayBuffer();
-    const imageBytes = downsizeImage(imageBuffer);
-    const base64Image = imageBytes.toString("base64");
-    const mimeType = "image/webp";
+    const base64Image = Buffer.from(imageBuffer).toString("base64");
+    const contentType = imageResponse.headers.get("content-type") || "image/webp";
+    const mimeType = contentType.startsWith("image/") ? contentType : "image/webp";
 
     // Call Gemini Vision API
     const geminiApiKey = process.env.GEMINI_API_KEY;
