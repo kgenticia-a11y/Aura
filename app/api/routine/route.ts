@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 interface FeedbackHistory {
   overall_rating: number;

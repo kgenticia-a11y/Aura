@@ -5,7 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, analyzeSchema } from "@/lib/validation";
 
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 const FITZPATRICK_TONE: Record<string, string> = {
   I: "Very fair, always burns. Watch for sun damage, redness, visible capillaries.",
