@@ -32,7 +32,7 @@
 
 | Item | Cost | Notes |
 |------|------|-------|
-| Gemini API | ~$0.003/analysis | Vision model pricing (gemini-2.0-flash) |
+| Gemini API | ~$0.003/analysis | Vision model pricing (gemini-2.5-flash, thinking disabled) |
 | Supabase Storage | ~$0.021/GB/mo | Photo storage (~2MB avg per photo) |
 | Supabase Bandwidth | Included | Up to 250GB on Pro plan |
 

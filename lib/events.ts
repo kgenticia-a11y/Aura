@@ -12,7 +12,8 @@ export type EventType =
   | "settings_updated"
   | "data_exported"
   | "onboarding_completed"
-  | "derm_consult_requested";
+  | "derm_consult_requested"
+  | "ingredient_scanned";
 
 export async function trackEvent(
   eventType: EventType,

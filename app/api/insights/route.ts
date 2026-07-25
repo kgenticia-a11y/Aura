@@ -150,6 +150,11 @@ Respond ONLY with valid JSON (no markdown):
     try {
       const response = await genai.models.generateContent({
         model: GEMINI_MODEL,
+        config: {
+          // gemini-2.5-flash thinks by default, adding latency and token cost.
+          // Insights only needs the narrative JSON, so disable thinking.
+          thinkingConfig: { thinkingBudget: 0 },
+        },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 

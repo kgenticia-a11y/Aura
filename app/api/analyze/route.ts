@@ -224,6 +224,10 @@ export async function POST(request: NextRequest) {
           config: {
             maxOutputTokens: 600,
             temperature: 0.3,
+            // gemini-2.5-flash enables "thinking" by default; those tokens are
+            // drawn from maxOutputTokens and would starve the visible JSON answer.
+            // Disable it so the full 600-token budget goes to the response.
+            thinkingConfig: { thinkingBudget: 0 },
           },
           contents: [
             {

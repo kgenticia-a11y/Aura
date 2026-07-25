@@ -13,6 +13,7 @@ import {
   User,
   Clock,
   Package,
+  ScanLine,
   Sun,
   Moon,
 } from "lucide-react";
@@ -62,6 +63,9 @@ export function AppHeader({ user }: AppHeaderProps) {
             </NavLink>
             <NavLink href="/products" icon={<Package className="w-4 h-4" />}>
               Products
+            </NavLink>
+            <NavLink href="/scan" icon={<ScanLine className="w-4 h-4" />}>
+              Scan
             </NavLink>
             <NavLink href="/timeline" icon={<Clock className="w-4 h-4" />}>
               Timeline

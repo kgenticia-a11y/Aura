@@ -17,6 +17,7 @@ import {
   Sparkles,
   Tag,
   PiggyBank,
+  ScanLine,
 } from "lucide-react";
 import Link from "next/link";
 import { findBudgetAlternatives } from "@/lib/product-dupes";
@@ -240,9 +241,18 @@ export default function ProductsPage() {
       <h1 className="text-3xl font-bold mb-2">
         Product <span className="text-gradient-gold">Catalog</span>
       </h1>
-      <p className="text-muted-foreground mb-8">
+      <p className="text-muted-foreground mb-4">
         Browse and review the products in your routine.
       </p>
+
+      {/* Ingredient scanner cross-link */}
+      <Link
+        href="/scan"
+        className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-sm font-medium bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors"
+      >
+        <ScanLine className="w-4 h-4" />
+        Scan a product label for ingredient conflicts
+      </Link>
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">

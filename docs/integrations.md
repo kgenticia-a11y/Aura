@@ -61,8 +61,9 @@
 ### 2. Google Gemini API
 - **SDK**: `@google/genai`
 - **Models Used**:
-  - `gemini-2.0-flash` — skin analysis (vision)
-  - `gemini-2.0-flash` — routine generation (text)
+  - `gemini-2.5-flash` — skin analysis (vision), thinking disabled
+  - `gemini-2.5-flash` — routine generation (text), thinking disabled
+  - `gemini-2.5-flash` — ingredient-label extraction (vision/text), thinking disabled
 - **API Key**: Server-side only (`GEMINI_API_KEY`)
 - **Rate Limits**: 1,500 RPM on free tier, 360 RPD for vision
 - **Fallback**: Cached last analysis + "temporarily unavailable" message
