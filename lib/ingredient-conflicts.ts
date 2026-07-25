@@ -120,3 +120,113 @@ export function detectConflicts(
 
   return conflicts;
 }
+
+// ---------------------------------------------------------------------------
+// Ingredient scanner
+//
+// The routine checker above compares generated AM/PM steps. The scanner reuses
+// the same CONFLICT_RULES to evaluate a flat ingredient list read off a product
+// label — both within that product and against the actives already on the
+// user's shelf — plus a simple allergy cross-check.
+// ---------------------------------------------------------------------------
+
+export interface ScanConflict {
+  /** Ingredient from the scanned product that triggered the rule. */
+  ingredient: string;
+  /** The ingredient it conflicts with. */
+  conflicts_with: string;
+  /** Whether the counterpart is in the same product or the user's routine. */
+  source: "same_product" | "your_routine";
+  reason: string;
+  severity: "warning" | "caution";
+}
+
+/** True when two raw ingredient names trigger a conflict rule (either direction). */
+function ingredientsConflict(
+  ingA: string,
+  ingB: string
+): ConflictRule | undefined {
+  return CONFLICT_RULES.find((rule) => {
+    const aInA = matchesGroup(ingA, rule.a);
+    const bInB = matchesGroup(ingB, rule.b);
+    const aInB = matchesGroup(ingA, rule.b);
+    const bInA = matchesGroup(ingB, rule.a);
+    return (aInA && bInB) || (aInB && bInA);
+  });
+}
+
+/**
+ * Detect conflicts for a scanned product: within its own ingredient list, and
+ * against the actives already in the user's routine. Most serious first.
+ *
+ * @param productIngredients ingredients extracted from the scanned label
+ * @param routineIngredients actives already on the user's shelf (optional)
+ */
+export function detectScanConflicts(
+  productIngredients: string[],
+  routineIngredients: string[] = []
+): ScanConflict[] {
+  const conflicts: ScanConflict[] = [];
+  const seen = new Set<string>();
+
+  const add = (
+    ingredient: string,
+    conflicts_with: string,
+    source: ScanConflict["source"],
+    rule: ConflictRule
+  ) => {
+    const key =
+      [normalize(ingredient), normalize(conflicts_with)].sort().join("|") + source;
+    if (seen.has(key)) return;
+    seen.add(key);
+    conflicts.push({
+      ingredient,
+      conflicts_with,
+      source,
+      reason: rule.reason,
+      severity: rule.severity,
+    });
+  };
+
+  // Within the scanned product.
+  for (let i = 0; i < productIngredients.length; i++) {
+    for (let j = i + 1; j < productIngredients.length; j++) {
+      const rule = ingredientsConflict(productIngredients[i], productIngredients[j]);
+      if (rule) add(productIngredients[i], productIngredients[j], "same_product", rule);
+    }
+  }
+
+  // Scanned product vs the user's existing routine.
+  for (const ing of productIngredients) {
+    for (const routineIng of routineIngredients) {
+      const rule = ingredientsConflict(ing, routineIng);
+      if (rule) add(ing, routineIng, "your_routine", rule);
+    }
+  }
+
+  return conflicts.sort((a, b) =>
+    a.severity === b.severity ? 0 : a.severity === "warning" ? -1 : 1
+  );
+}
+
+/**
+ * Match extracted ingredients against a user's declared allergies. Substring
+ * match in either direction, consistent with the products page.
+ */
+export function detectAllergyMatches(
+  ingredients: string[],
+  allergies: string[]
+): { ingredient: string; allergy: string }[] {
+  if (allergies.length === 0) return [];
+  const matches: { ingredient: string; allergy: string }[] = [];
+  for (const ingredient of ingredients) {
+    for (const allergy of allergies) {
+      const a = normalize(allergy);
+      const i = normalize(ingredient);
+      if (a.length > 0 && (i.includes(a) || a.includes(i))) {
+        matches.push({ ingredient, allergy });
+      }
+    }
+  }
+  return matches;
+}

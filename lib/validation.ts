@@ -32,6 +32,30 @@ export const dermConsultSchema = z.object({
   urgency: z.enum(["routine", "priority", "urgent"]).default("routine"),
 });
 
+// Ingredient scanner: accept either a base64 label photo or pasted ingredient
+// text (at least one must be present). Image is capped to keep request bodies
+// and Gemini token usage bounded.
+export const scanIngredientsSchema = z
+  .object({
+    image: z
+      .string()
+      .max(8_000_000, "Image is too large")
+      .optional(),
+    mime_type: z
+      .string()
+      .regex(/^image\/(jpeg|png|webp|heic|heif)$/i, "Unsupported image type")
+      .optional(),
+    ingredients_text: z
+      .string()
+      .trim()
+      .max(4000, "Ingredient text is too long")
+      .optional(),
+  })
+  .refine(
+    (v) => (v.image && v.image.length > 0) || (v.ingredients_text && v.ingredients_text.length > 0),
+    { message: "Provide a label photo or paste an ingredient list" }
+  );
+
 export const dermConsultResponseSchema = z.object({
   id: z.string().uuid("id must be a valid UUID"),
   dermatologist_notes: z.string().trim().min(1).max(4000),
