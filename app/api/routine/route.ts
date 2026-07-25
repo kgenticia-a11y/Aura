@@ -317,6 +317,11 @@ export async function POST(request: NextRequest) {
 
       const response = await genai.models.generateContent({
         model: GEMINI_MODEL,
+        config: {
+          // gemini-2.5-flash thinks by default, adding latency and token cost.
+          // Routine generation only needs the JSON output, so disable thinking.
+          thinkingConfig: { thinkingBudget: 0 },
+        },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
