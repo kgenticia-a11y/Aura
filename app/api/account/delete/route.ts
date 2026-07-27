@@ -35,7 +35,7 @@ export async function POST(_request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { ok } = rateLimit(`delete:${user.id}`, 3, 300_000);
+  const { ok } = await rateLimit(`delete:${user.id}`, 3, 300_000);
   if (!ok) {
     return NextResponse.json(
       { error: "Too many attempts. Please wait a few minutes." },

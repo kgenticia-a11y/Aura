@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { ok } = rateLimit(`report-card:${user.id}`, 10, 60_000);
+  const { ok } = await rateLimit(`report-card:${user.id}`, 10, 60_000);
   if (!ok) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a minute." },
