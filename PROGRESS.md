@@ -2,6 +2,33 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 2: Fix H3 (automatic photo retention)
+
+**Date:** 2026-07-27
+**Status:** Built + verified; migration applied to prod DB. Merging H1+H3 to production.
+
+**Did:** Photo "auto-delete after N days" is now actually enforced on a schedule.
+- `supabase/migrations/20260727_photo_cleanup_function.sql` — `cleanup_expired_photos()`
+  SECURITY DEFINER function: soft-deletes selfies past each owner's
+  `photo_retention_days` and returns storage paths. EXECUTE revoked from
+  anon/authenticated, granted only to `service_role`.
+- `app/api/cron/photo-cleanup/route.ts` — daily job (CRON_SECRET-guarded) that calls
+  the function via the service role and removes the underlying storage objects.
+- `vercel.json` — Vercel Cron entry, daily at 03:00 UTC.
+
+**Tested:** migration applied via Supabase; `cleanup_expired_photos()` runs (0 rows,
+no photos yet); privilege check confirms anon=❌ authenticated=❌ service_role=✅;
+security advisor does NOT flag the new function; `tsc`/`eslint`/`next build` ✅ with
+`/api/cron/photo-cleanup` in the route manifest.
+
+**Open/risks:** ⚠️ Requires `CRON_SECRET` env var set in Vercel for the cron to run
+(the route returns 401 without it — safe default). `SUPABASE_SERVICE_ROLE_KEY` is
+already used by other routes. Vercel Cron only fires on the production deployment.
+
+**Next:** Batch 3 — H2 (durable, shared rate limiting to replace the in-memory Map).
+
+---
+
 ## Phase 2 — Batch 1: Fix H1 (history detail view)
 
 **Date:** 2026-07-27
