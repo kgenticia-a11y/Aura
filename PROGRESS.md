@@ -2,6 +2,42 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 3 — Batch 2: F3 (what/why/where + nearest retail)
+
+**Date:** 2026-07-27
+**Status:** Complete — build green, logic verified, pushing to branch.
+
+**Did:** Completed the what/why/**where** recommendation loop on the remediation
+cards. "What" = product name/category; "why" = the matched actives (F2);
+"where" = this batch.
+- `lib/retail.ts` — curated, dependency-free retail layer behind a
+  `RetailProvider` interface (swappable for a real Places/Maps provider later).
+  Maps brand → stocking retail chains (curated `BRAND_RETAILERS`, tier
+  fallback, generic fallback) and builds Google Maps "near me" deep links,
+  optionally centered on the user's coordinates. `buildOnlineBuyUrl()` falls
+  back to a Google Shopping search so every product is shoppable even without a
+  `purchase_url`.
+- `components/where-to-buy.tsx` — client component: "Shop online" link +
+  on-demand "Find in a store near me". Requests geolocation only when the user
+  clicks, builds maps links **on-device**, and shows a privacy note. Location
+  is never sent to a server or stored; denial falls back to generic "near me"
+  links.
+- `app/(protected)/analysis/[id]/page.tsx` — remediation product cards now
+  render `<WhereToBuy>` (replacing the inline Shop link that only worked when a
+  purchase_url existed).
+
+**Privacy:** location is sensitive personal data — handled per the directive:
+requested per-search with consent, used only to open a map, never persisted.
+
+**Tested:** `tsc` ✅; `eslint` ✅; `next build` ✅; standalone logic test
+confirms brand mapping (CeraVe→Target/CVS), tier fallback (unknown luxury→
+Sephora), and valid Maps deep links with/without coords.
+
+**Next:** Phase 3 Batch 3 — F4 (skin-age + expanded attributes) + F5 (routine
+reassessment cadence).
+
+---
+
 ## Phase 3 — Batch 1: F1 + F2 (named conditions + ingredient-informed remediation)
 
 **Date:** 2026-07-27
