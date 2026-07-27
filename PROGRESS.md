@@ -2,6 +2,37 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 5: Fix M2 (auth hardening)
+
+**Date:** 2026-07-27
+**Status:** Complete — build green, pushing to branch.
+
+**Did:** Moved login/signup flows server-side with rate limiting, stronger
+password validation, and generic error messages to prevent credential stuffing:
+- `app/api/auth/login/route.ts` — server-side login with rate limiting
+  (5 attempts/email/minute). Returns generic "Invalid email or password"
+  instead of leaking account-existence info.
+- `app/api/auth/signup/route.ts` — server-side signup with rate limiting
+  (3 attempts/email/5 minutes) + password strength validation (min 8 chars,
+  at least one letter, one number). Privacy consent recorded server-side.
+- `app/auth/login/page.tsx` — updated to call `/api/auth/login` instead of
+  `supabase.auth.signInWithPassword()` directly.
+- `app/auth/signup/page.tsx` — updated to call `/api/auth/signup` instead of
+  client-side `signUp()`. Removed client-only password length check.
+- `app/auth/callback/route.ts` — fixed open redirect: `next` parameter now
+  validated (must start with `/`, must not start with `//`).
+- `proxy.ts` — added `/scan` and `/derm` to protected route prefixes.
+
+**Tested:** `tsc --noEmit` ✅; `next build` ✅; all routes in manifest.
+
+**Note:** HaveIBeenPwned leaked-password check should be enabled in Supabase
+Auth dashboard settings (Auth → Settings → Password Protection) for full M2
+coverage. This is a project-level toggle, not code.
+
+**Next:** Batch 6 — M3 (fix `get_health_score_benchmark()` SECURITY DEFINER permissions).
+
+---
+
 ## Phase 2 — Batch 4: Fix M1 (server-side face/quality gate)
 
 **Date:** 2026-07-27
