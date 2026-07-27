@@ -2,6 +2,39 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 6: Fix M3 (health-score benchmark DEFINER exposure)
+
+**Date:** 2026-07-27
+**Status:** Complete — migration applied, advisor WARN cleared.
+
+**Did:** `get_health_score_benchmark()` was SECURITY DEFINER and callable by
+`anon`/`PUBLIC` via REST (advisor lint 0029 WARN). Since it aggregates health
+scores across ALL users (needs DEFINER to bypass RLS), switching it to plain
+INVOKER would break the community benchmark. Instead, applied the Supabase
+private-schema wrapper pattern:
+- `private.compute_health_score_benchmark()` — SECURITY DEFINER, holds the
+  privileged aggregation, lives in the non-REST-exposed `private` schema,
+  EXECUTE granted only to authenticated + service_role.
+- `public.get_health_score_benchmark()` — now SECURITY INVOKER, a thin wrapper
+  that calls the private function. Carries no elevated privileges; returns only
+  the aggregate (avg + sample size), never per-user rows. `anon`/`PUBLIC`
+  revoked.
+- `supabase/migrations/20260727_fix_health_score_benchmark_permissions.sql`
+
+**Tested:** migration applied; `SELECT * FROM get_health_score_benchmark()`
+returns `{avg_score, sample_size}` unchanged; security advisor re-run — the
+`authenticated_security_definer_function_executable` WARN is **gone**.
+
+**Remaining advisor items (not M3):** `error_logs` RLS-no-policy INFO → L1
+(Batch 7). `rate_limits` RLS-no-policy INFO is **intentional** (deny-all direct
+access; only reached via DEFINER). `auth_leaked_password_protection` WARN is a
+project-level Auth toggle (M2) — must be enabled in the Supabase dashboard
+(Auth → Password Protection); it has no migration equivalent.
+
+**Next:** Batch 7 — L1 (add scoped RLS insert policy to `error_logs`).
+
+---
+
 ## Phase 2 — Batch 5: Fix M2 (auth hardening)
 
 **Date:** 2026-07-27
