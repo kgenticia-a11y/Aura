@@ -2,8 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
+import sharp from "sharp";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, analyzeSchema } from "@/lib/validation";
+
+const MIN_DIMENSION = 200;
+const MAX_DIMENSION = 8000;
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
@@ -23,8 +27,8 @@ function buildAnalysisPrompt(fitzpatrickScale: string | null): string {
 
   return `Cosmetic skin analyst. Analyze this face photo. NOT medical advice.${tone}
 Reply with ONLY valid JSON, no markdown:
-{"skin_type":"oily|dry|combination|normal|sensitive","concerns":[{"name":"str","severity":"mild|moderate|significant","description":"1 sentence","evidence":"visual cue","confidence":"low|medium|high"}],"hydration_level":"low|medium|high","health_score":1-100,"environmental_factors":{"sun_damage_signs":"none|mild|moderate|significant","dehydration_signs":"none|mild|moderate|significant"},"overall_confidence":"low|medium|high","confidence_reason":"1 sentence","overall_summary":"2 sentences max"}
-Max 3 concerns. Keep descriptions under 15 words each. Only report what is visible.`;
+{"is_face":true,"skin_type":"oily|dry|combination|normal|sensitive","concerns":[{"name":"str","severity":"mild|moderate|significant","description":"1 sentence","evidence":"visual cue","confidence":"low|medium|high"}],"hydration_level":"low|medium|high","health_score":1-100,"environmental_factors":{"sun_damage_signs":"none|mild|moderate|significant","dehydration_signs":"none|mild|moderate|significant"},"overall_confidence":"low|medium|high","confidence_reason":"1 sentence","overall_summary":"2 sentences max"}
+Set is_face to false if the image does not show a human face — return only {"is_face":false}. Max 3 concerns. Keep descriptions under 15 words each. Only report what is visible.`;
 }
 
 
@@ -137,6 +141,31 @@ export async function POST(request: NextRequest) {
 
     const imageResponse = await fetch(signedUrlData.signedUrl);
     const imageBuffer = await imageResponse.arrayBuffer();
+
+    // Quality gate: validate the image before spending a Gemini call.
+    try {
+      const meta = await sharp(Buffer.from(imageBuffer)).metadata();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+      if (w < MIN_DIMENSION || h < MIN_DIMENSION) {
+        return NextResponse.json(
+          { error: `Photo is too small (${w}x${h}). Please use at least ${MIN_DIMENSION}x${MIN_DIMENSION} pixels.` },
+          { status: 422 }
+        );
+      }
+      if (w > MAX_DIMENSION || h > MAX_DIMENSION) {
+        return NextResponse.json(
+          { error: "Photo dimensions are too large. Please use a standard selfie." },
+          { status: 422 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "The uploaded file doesn't appear to be a valid image." },
+        { status: 422 }
+      );
+    }
+
     const base64Image = Buffer.from(imageBuffer).toString("base64");
     const contentType = imageResponse.headers.get("content-type") || "image/webp";
     const mimeType = contentType.startsWith("image/") ? contentType : "image/webp";
@@ -309,6 +338,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "AI returned invalid response. Please try again." },
         { status: 500 }
+      );
+    }
+
+    if (parsed.is_face === false) {
+      return NextResponse.json(
+        { error: "We couldn't detect a face in this photo. Please take a clear, front-facing selfie." },
+        { status: 422 }
       );
     }
 
