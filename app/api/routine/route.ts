@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
+import { logError } from "@/lib/log-error";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
@@ -432,6 +433,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("Routine error:", err);
+    await logError({
+      errorType: "routine_route_error",
+      message: err instanceof Error ? err.message : String(err),
+      endpoint: "/api/routine",
+      stackTrace: err instanceof Error ? err.stack : null,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
+import { logError } from "@/lib/log-error";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
@@ -194,6 +195,12 @@ Respond ONLY with valid JSON (no markdown):
     }
   } catch (err) {
     console.error("Insights error:", err);
+    await logError({
+      errorType: "insights_route_error",
+      message: err instanceof Error ? err.message : String(err),
+      endpoint: "/api/insights",
+      stackTrace: err instanceof Error ? err.stack : null,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
