@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,15 +28,16 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        toast.error(error.message);
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Invalid email or password.");
         return;
       }
 

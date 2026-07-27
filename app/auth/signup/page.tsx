@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,46 +25,20 @@ export default function SignupPage() {
       return;
     }
 
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const supabase = createClient();
-
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
-
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-          emailRedirectTo: `${siteUrl}/auth/callback`,
-        },
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, full_name: fullName }),
       });
 
-      if (error) {
-        toast.error(error.message);
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Could not create account.");
         return;
-      }
-
-      // Update privacy_accepted_at in profile
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        await supabase
-          .from("profiles")
-          .update({ privacy_accepted_at: new Date().toISOString() })
-          .eq("id", user.id);
       }
 
       trackEvent("signup", { method: "email" });
