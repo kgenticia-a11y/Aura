@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { ok } = rateLimit(`photo-cleanup:${user.id}`, 3, 300_000);
+  const { ok } = await rateLimit(`photo-cleanup:${user.id}`, 3, 300_000);
   if (!ok) {
     return NextResponse.json(
       { error: "Too many attempts. Please wait a few minutes." },

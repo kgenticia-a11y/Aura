@@ -2,6 +2,28 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 3: Fix H2 (durable shared rate limiting)
+
+**Date:** 2026-07-27
+**Status:** Complete — migration applied, build green, pushing to branch.
+
+**Did:** Replaced the per-process in-memory rate limiter with a Postgres-backed shared
+limiter so all Vercel serverless instances share one counter. Graceful fallback to the
+old in-memory limiter if the DB is unavailable.
+- `supabase/migrations/20260727_rate_limits.sql` — `rate_limits` table (RLS on, no
+  policies = no direct PostgREST access) + `check_rate_limit()` SECURITY DEFINER
+  function. EXECUTE revoked from anon/authenticated, granted to service_role only.
+- `lib/rate-limit.ts` — rewritten: `rateLimit()` is now `async`, calls Postgres RPC
+  via a lazy service-role client, falls back to `memoryRateLimit()` on error.
+- All 8 API route call sites updated: `const { ok } = await rateLimit(...)`.
+
+**Tested:** migration applied to prod; privilege check confirms service_role + postgres
+only; `tsc --noEmit` ✅; `eslint` ✅ (0 errors, 3 pre-existing warnings); `next build` ✅.
+
+**Next:** Batch 4 — M1 (server-side face/quality gate in `/api/analyze`).
+
+---
+
 ## Phase 2 — Batch 2: Fix H3 (automatic photo retention)
 
 **Date:** 2026-07-27
