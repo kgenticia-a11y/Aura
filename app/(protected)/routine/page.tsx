@@ -64,6 +64,7 @@ export default function RoutinePage() {
   const [conflicts, setConflicts] = useState<IngredientConflict[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [refreshPrompt, setRefreshPrompt] = useState(false);
 
   useEffect(() => {
     loadRoutine();
@@ -200,6 +201,14 @@ export default function RoutinePage() {
       }
     }
 
+    // F5 — arriving from the dashboard "routine may be out of date" nudge.
+    // Read the query param here (in async flow) to avoid a Suspense boundary
+    // and a synchronous setState inside the mount effect.
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("refresh") === "1") setRefreshPrompt(true);
+    }
+
     setLoading(false);
   }
 
@@ -313,6 +322,35 @@ export default function RoutinePage() {
           <span className="ml-2 hidden sm:inline">Regenerate</span>
         </Button>
       </div>
+
+      {/* F5 — refresh prompt when arriving from a reassessment nudge */}
+      {refreshPrompt && (
+        <div className="mb-6 p-4 rounded-xl border border-gold/40 bg-gold/10 flex items-center gap-3">
+          <RefreshCw className="w-5 h-5 text-gold shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">
+              You&apos;ve re-analyzed your skin since this routine
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Regenerate to reflect your latest results and concerns.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              setRefreshPrompt(false);
+              generateRoutine();
+            }}
+            disabled={generating}
+            className="shrink-0 bg-gold text-charcoal hover:bg-gold-light font-semibold"
+          >
+            {generating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              "Regenerate now"
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl mb-8">

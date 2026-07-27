@@ -41,6 +41,8 @@ interface Analysis {
   concerns: Concern[];
   hydration_level: string;
   health_score: number;
+  skin_age?: number | null;
+  attributes?: Record<string, number> | null;
   environmental_factors: {
     sun_damage_signs: string;
     dehydration_signs: string;
@@ -418,6 +420,68 @@ export default function AnalysisPage() {
               {analysis.environmental_factors.dehydration_signs}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* F4 — Skin age + expanded attributes */}
+      {(analysis.skin_age || analysis.attributes) && (
+        <div className="mb-6 p-5 rounded-2xl border border-border/50 bg-card/50">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-gold" />
+              <h2 className="text-lg font-semibold">Skin Attributes</h2>
+            </div>
+            {analysis.skin_age != null && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Est. skin age</p>
+                <p className="text-2xl font-bold text-gradient-gold leading-none">
+                  {analysis.skin_age}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {analysis.attributes && (
+            <div className="space-y-3">
+              {(
+                [
+                  ["pores", "Pore refinement"],
+                  ["firmness", "Firmness"],
+                  ["radiance", "Radiance"],
+                  ["evenness", "Tone evenness"],
+                ] as const
+              )
+                .filter(([key]) => typeof analysis.attributes?.[key] === "number")
+                .map(([key, label]) => {
+                  const value = analysis.attributes![key];
+                  const barColor =
+                    value >= 70
+                      ? "bg-green-400"
+                      : value >= 45
+                      ? "bg-gold"
+                      : "bg-amber-500";
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium">{value}/100</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${barColor} transition-all`}
+                          style={{ width: `${value}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
+          <p className="text-[11px] text-muted-foreground/70 mt-4">
+            Skin age is a cosmetic estimate from visible skin condition — not a
+            biological or medical age. Higher attribute scores are better.
+          </p>
         </div>
       )}
 

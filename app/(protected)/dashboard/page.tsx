@@ -12,6 +12,8 @@ import {
   Star,
   Clock,
   Flame,
+  CalendarClock,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { SkinInsights } from "@/components/skin-insights";
@@ -166,6 +168,21 @@ export default async function DashboardPage() {
           (1000 * 60 * 60 * 24)
       )
     : null;
+
+  // F5 — Formal reassessment cadence. Skin change is best judged over ~6 weeks,
+  // so beyond that we surface a distinct, stronger "full reassessment" prompt
+  // (the 7-day nudge below is just a progress check-in).
+  const REASSESS_THRESHOLD_DAYS = 42;
+  const showReassessment =
+    daysSinceAnalysis !== null && daysSinceAnalysis >= REASSESS_THRESHOLD_DAYS;
+
+  // Routine is stale relative to the latest analysis when the user has
+  // re-analyzed since generating their current routine — time to refresh it.
+  const routineStaleVsAnalysis =
+    !!activeRoutine &&
+    !!latestAnalysis &&
+    new Date(latestAnalysis.created_at).getTime() >
+      new Date(activeRoutine.created_at).getTime();
 
   // Smart streak nudges
   const today = new Date();
@@ -464,25 +481,68 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Analysis Reminder */}
-      {daysSinceAnalysis !== null && daysSinceAnalysis >= 7 && (
-        <div className="p-4 rounded-xl border border-gold/20 bg-gold/5 mb-8 flex items-center gap-3">
-          <Clock className="w-5 h-5 text-gold shrink-0" />
+      {/* F5 — 6-week reassessment prompt (takes priority over the weekly nudge) */}
+      {showReassessment && (
+        <div className="p-4 rounded-xl border border-gold/40 bg-gold/10 mb-8 flex items-center gap-3">
+          <CalendarClock className="w-5 h-5 text-gold shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium">Time for a check-in!</p>
+            <p className="text-sm font-medium">Time for your skin reassessment</p>
             <p className="text-xs text-muted-foreground">
-              It&apos;s been {daysSinceAnalysis} days since your last analysis.
-              A weekly selfie helps track your progress.
+              It&apos;s been {daysSinceAnalysis} days since your last analysis —
+              skin changes show over ~6 weeks. A fresh scan re-evaluates your
+              concerns and refreshes your routine.
             </p>
           </div>
           <Link
             href="/capture"
             className="shrink-0 px-4 py-2 rounded-lg bg-gold text-charcoal text-sm font-semibold hover:bg-gold-light transition-colors"
           >
-            Capture
+            Reassess
           </Link>
         </div>
       )}
+
+      {/* F5 — Routine is stale relative to the newest analysis */}
+      {routineStaleVsAnalysis && (
+        <div className="p-4 rounded-xl border border-gold/20 bg-gold/5 mb-8 flex items-center gap-3">
+          <RefreshCw className="w-5 h-5 text-gold shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Your routine may be out of date</p>
+            <p className="text-xs text-muted-foreground">
+              You&apos;ve analyzed your skin since this routine was created —
+              refresh it to reflect your latest results.
+            </p>
+          </div>
+          <Link
+            href="/routine?refresh=1"
+            className="shrink-0 px-4 py-2 rounded-lg bg-gold text-charcoal text-sm font-semibold hover:bg-gold-light transition-colors"
+          >
+            Refresh
+          </Link>
+        </div>
+      )}
+
+      {/* Analysis Reminder — weekly progress check-in (below the 6-week gate) */}
+      {daysSinceAnalysis !== null &&
+        daysSinceAnalysis >= 7 &&
+        !showReassessment && (
+          <div className="p-4 rounded-xl border border-gold/20 bg-gold/5 mb-8 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-gold shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Time for a check-in!</p>
+              <p className="text-xs text-muted-foreground">
+                It&apos;s been {daysSinceAnalysis} days since your last analysis.
+                A weekly selfie helps track your progress.
+              </p>
+            </div>
+            <Link
+              href="/capture"
+              className="shrink-0 px-4 py-2 rounded-lg bg-gold text-charcoal text-sm font-semibold hover:bg-gold-light transition-colors"
+            >
+              Capture
+            </Link>
+          </div>
+        )}
 
       {/* Quick Actions */}
       <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 mb-8">
