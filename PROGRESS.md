@@ -2,6 +2,33 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 8: Fix L2 (FK covering indexes + stale model default)
+
+**Date:** 2026-07-27
+**Status:** Complete — migration applied, verified. **Phase 2 loophole fixes DONE.**
+
+**Did:** DB-only housekeeping (no code changes):
+- Added covering btree indexes on 9 unindexed foreign keys (advisor lint 0001):
+  `derm_consultations.analysis_id`, `error_logs.user_id`,
+  `product_favorites.product_id`, `product_reviews.product_id`,
+  `routine_feedback.routine_id`, `routine_products.product_id`,
+  `routine_products.routine_id`, `routine_step_completions.routine_id`,
+  `routines.analysis_id`. Improves join + cascade-delete performance.
+- Fixed `skin_analyses.model_version` default: `gemini-2.0-flash` →
+  `gemini-2.5-flash` (all code paths set it explicitly, so this only affected
+  the rare default-omitted insert, but avoids mislabeling).
+- `supabase/migrations/20260727_fk_indexes_and_model_default.sql`
+
+**Tested:** migration applied; re-query confirms **0** remaining unindexed FKs
+and the model_version default is now `gemini-2.5-flash`.
+
+**Phase 2 complete.** All 8 audit issues fixed (H1, H2, H3, M1, M2, M3, L1, L2).
+Remaining advisor items are either intentional (`rate_limits` RLS deny-all) or
+dashboard-only (`auth_leaked_password_protection` toggle). **Next: Phase 3 —
+feature builds F1–F8.**
+
+---
+
 ## Phase 2 — Batch 7: Fix L1 (error_logs RLS + working error logging)
 
 **Date:** 2026-07-27
