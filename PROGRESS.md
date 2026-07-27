@@ -2,6 +2,46 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 3 — Batch 1: F1 + F2 (named conditions + ingredient-informed remediation)
+
+**Date:** 2026-07-27
+**Status:** Complete — build green, logic verified, pushing to branch.
+
+**Decisions locked (user):** F3 nearest-retail = curated data now (swappable
+provider later); F6 = gating now via `profiles.is_premium`, Stripe later.
+
+**Did:** Turned the analysis "Identified Concerns" list into an actionable,
+cosmetic-framed treatment plan.
+- `lib/skin-conditions.ts` (F1) — deterministic condition reference library.
+  Keyword-matches free-form concern names ("Visible pores", "Enlarged pores" →
+  one entry) to a canonical condition with plain-language *what it is*, *common
+  causes*, *helpful actives*, and a *lifestyle tip*. Cosmetic framing only;
+  generic fallback so there's always guidance.
+- `lib/remediation.ts` (F2) — ingredient-informed engine. For each concern:
+  resolve the condition → its helpful actives → **catalog** products whose
+  `key_ingredients` overlap those actives (normalized two-way match), ranked by
+  match count + skin-type suitability. Catalog-driven, nothing hardcoded.
+- `app/api/remediation/route.ts` — GET `?analysis_id=`; auth + RLS + rate limit
+  (30/min); loads analysis concerns + catalog, returns the plan. Deterministic
+  (no LLM spend). Wired into `logError`.
+- `app/(protected)/analysis/[id]/page.tsx` — new "Your Remediation Plan"
+  section: per-concern card with named condition, what-it-is/causes, helpful-
+  ingredient chips, matched products (with "Suits your skin" badge + Shop link
+  when a purchase URL exists), and the lifestyle tip. Carries the cosmetic-not-
+  medical disclaimer.
+
+**Tested:** `tsc` ✅; `eslint` ✅ (0 warnings after dep fix); `next build` ✅
+(`/api/remediation` in manifest); standalone logic test against the real 22-item
+catalog confirms correct matches + ranking (pores→niacinamide, dryness→CeraVe
+ranked above single-match).
+
+**Note:** Most catalog products currently lack `purchase_url` — the "Shop" link
+renders only when present. F3 adds curated retail/purchase + nearest-store data.
+
+**Next:** Phase 3 Batch 2 — F3 (what/why/where recs + nearest retail, curated).
+
+---
+
 ## Phase 2 — Batch 8: Fix L2 (FK covering indexes + stale model default)
 
 **Date:** 2026-07-27
