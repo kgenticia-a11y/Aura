@@ -28,10 +28,38 @@ function buildAnalysisPrompt(fitzpatrickScale: string | null): string {
 
   return `Cosmetic skin analyst. Analyze this face photo. NOT medical advice.${tone}
 Reply with ONLY valid JSON, no markdown:
-{"is_face":true,"skin_type":"oily|dry|combination|normal|sensitive","concerns":[{"name":"str","severity":"mild|moderate|significant","description":"1 sentence","evidence":"visual cue","confidence":"low|medium|high"}],"hydration_level":"low|medium|high","health_score":1-100,"environmental_factors":{"sun_damage_signs":"none|mild|moderate|significant","dehydration_signs":"none|mild|moderate|significant"},"overall_confidence":"low|medium|high","confidence_reason":"1 sentence","overall_summary":"2 sentences max"}
-Set is_face to false if the image does not show a human face — return only {"is_face":false}. Max 3 concerns. Keep descriptions under 15 words each. Only report what is visible.`;
+{"is_face":true,"skin_type":"oily|dry|combination|normal|sensitive","concerns":[{"name":"str","severity":"mild|moderate|significant","description":"1 sentence","evidence":"visual cue","confidence":"low|medium|high"}],"hydration_level":"low|medium|high","health_score":1-100,"skin_age":estimated cosmetic age 10-100,"attributes":{"pores":0-100,"firmness":0-100,"radiance":0-100,"evenness":0-100},"environmental_factors":{"sun_damage_signs":"none|mild|moderate|significant","dehydration_signs":"none|mild|moderate|significant"},"overall_confidence":"low|medium|high","confidence_reason":"1 sentence","overall_summary":"2 sentences max"}
+skin_age is a COSMETIC estimate from visible skin condition only, never biological/medical age. attributes are 0-100 where higher is better (100 = refined pores, firm, radiant, even tone). Set is_face to false if the image does not show a human face — return only {"is_face":false}. Max 3 concerns. Keep descriptions under 15 words each. Only report what is visible.`;
 }
 
+
+// Clamp the model's skin-age estimate into the DB-allowed cosmetic range
+// (10–100), returning null for anything missing or non-numeric so we never
+// violate the skin_analyses_skin_age_range check constraint.
+function sanitizeSkinAge(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return null;
+  const rounded = Math.round(n);
+  if (rounded < 10 || rounded > 100) return null;
+  return rounded;
+}
+
+const ATTRIBUTE_KEYS = ["pores", "firmness", "radiance", "evenness"] as const;
+
+// Keep only the known 0–100 attribute scores; drop the object entirely if none
+// are valid.
+function sanitizeAttributes(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object") return null;
+  const src = value as Record<string, unknown>;
+  const out: Record<string, number> = {};
+  for (const key of ATTRIBUTE_KEYS) {
+    const n = typeof src[key] === "number" ? (src[key] as number) : Number(src[key]);
+    if (Number.isFinite(n)) {
+      out[key] = Math.min(100, Math.max(0, Math.round(n)));
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -195,6 +223,13 @@ export async function POST(request: NextRequest) {
         ],
         hydration_level: "medium",
         health_score: 75,
+        skin_age: 29,
+        attributes: {
+          pores: 68,
+          firmness: 74,
+          radiance: 70,
+          evenness: 66,
+        },
         environmental_factors: {
           sun_damage_signs: "none",
           dehydration_signs: "mild",
@@ -214,6 +249,8 @@ export async function POST(request: NextRequest) {
           concerns: mockAnalysis.concerns,
           hydration_level: mockAnalysis.hydration_level,
           health_score: mockAnalysis.health_score,
+          skin_age: mockAnalysis.skin_age,
+          attributes: mockAnalysis.attributes,
           environmental_factors: mockAnalysis.environmental_factors,
           raw_response: mockAnalysis,
           model_version: "preview",
@@ -252,7 +289,7 @@ export async function POST(request: NextRequest) {
         const response = await genai.models.generateContent({
           model: GEMINI_MODEL,
           config: {
-            maxOutputTokens: 600,
+            maxOutputTokens: 700,
             temperature: 0.3,
             // gemini-2.5-flash enables "thinking" by default; those tokens are
             // drawn from maxOutputTokens and would starve the visible JSON answer.
@@ -359,6 +396,8 @@ export async function POST(request: NextRequest) {
         concerns: parsed.concerns,
         hydration_level: parsed.hydration_level,
         health_score: parsed.health_score,
+        skin_age: sanitizeSkinAge(parsed.skin_age),
+        attributes: sanitizeAttributes(parsed.attributes),
         environmental_factors: parsed.environmental_factors,
         raw_response: parsed,
         model_version: GEMINI_MODEL,

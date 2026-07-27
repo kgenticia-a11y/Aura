@@ -2,6 +2,41 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 3 — Batch 3: F4 (skin-age + attributes) + F5 (reassessment cadence)
+
+**Date:** 2026-07-27
+**Status:** Complete — migration applied, build green, logic verified.
+
+**Did (F4 — skin-age + expanded attributes):**
+- `supabase/migrations/20260727_skin_age_attributes.sql` — adds `skin_age INT`
+  (CHECK 10–100) + `attributes JSONB` to `skin_analyses` (dedicated columns so
+  they can be trended).
+- `app/api/analyze/route.ts` — prompt now asks for `skin_age` (cosmetic
+  estimate, explicitly not biological/medical) and `attributes` {pores,
+  firmness, radiance, evenness} 0–100. Added `sanitizeSkinAge()` (clamps to
+  null outside 10–100 so the constraint can't be violated) and
+  `sanitizeAttributes()` (keeps known keys, clamps 0–100). Mock + real inserts
+  persist both. Output budget bumped 600→700 for the extra fields.
+- Analysis detail page — new "Skin Attributes" card: est. skin-age figure +
+  color-graded 0–100 bars, with a cosmetic-not-medical disclaimer.
+
+**Did (F5 — reassessment cadence):**
+- Dashboard — formal 6-week (42-day) reassessment prompt, distinct from and
+  taking priority over the existing 7-day check-in (which now only shows for
+  7–41 days). Plus a "routine may be out of date" nudge when the latest
+  analysis is newer than the active routine.
+- Routine page — honors `?refresh=1` (from the dashboard nudge) with a banner
+  offering one-tap Regenerate. Param read in the async load flow to avoid a
+  Suspense boundary and a synchronous effect setState.
+
+**Tested:** migration applied; `tsc` ✅; `eslint` (no new errors — 2 pre-existing
+baseline errors unchanged) ✅; `next build` ✅; standalone tests confirm
+sanitizers reject out-of-range age/attrs (constraint-safe).
+
+**Next:** Phase 3 Batch 4 — F6 (premium tier gating via `profiles.is_premium`).
+
+---
+
 ## Phase 3 — Batch 2: F3 (what/why/where + nearest retail)
 
 **Date:** 2026-07-27
