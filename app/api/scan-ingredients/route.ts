@@ -8,6 +8,7 @@ import {
   detectScanConflicts,
   detectAllergyMatches,
 } from "@/lib/ingredient-conflicts";
+import { logError } from "@/lib/log-error";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
@@ -291,6 +292,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("Scan error:", err);
+    await logError({
+      errorType: "scan_ingredients_route_error",
+      message: err instanceof Error ? err.message : String(err),
+      endpoint: "/api/scan-ingredients",
+      stackTrace: err instanceof Error ? err.stack : null,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

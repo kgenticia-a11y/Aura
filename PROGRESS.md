@@ -2,6 +2,34 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 7: Fix L1 (error_logs RLS + working error logging)
+
+**Date:** 2026-07-27
+**Status:** Complete — migration applied, write/read paths verified, build green.
+
+**Did:** `error_logs` had RLS enabled but no policies (so every client read
+returned zero rows and the admin "Recent Errors" panel was always empty), and
+nothing actually wrote to it. Wired up a secure end-to-end logging path:
+- `lib/log-error.ts` — server-side `logError()` helper that writes via the
+  service-role client (bypasses RLS). Best-effort: never throws into the
+  request path; falls back to console when no service key is set.
+- Wired `logError()` into the top-level catch blocks of `/api/analyze`,
+  `/api/scan-ingredients`, `/api/insights`, `/api/routine`.
+- `supabase/migrations/20260727_error_logs_policies.sql` — adds an admin-only
+  SELECT policy (`profiles.is_admin = true`). Deliberately **no** client INSERT
+  policy: writes go through the service role, since a client-writable log table
+  is a spam/forgery vector and logs hold stack traces + user ids.
+
+**Tested:** migration applied; service-role INSERT succeeds; admin SELECT policy
+present (`{authenticated}` + is_admin check); test row cleaned up; `tsc` ✅;
+`next build` ✅. The `rls_enabled_no_policy` INFO for `error_logs` is now
+cleared (policy exists).
+
+**Next:** Batch 8 — L2 (covering indexes for unindexed FKs; fix
+`skin_analyses.model_version` DB default).
+
+---
+
 ## Phase 2 — Batch 6: Fix M3 (health-score benchmark DEFINER exposure)
 
 **Date:** 2026-07-27

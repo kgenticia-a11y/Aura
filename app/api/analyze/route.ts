@@ -5,6 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, analyzeSchema } from "@/lib/validation";
+import { logError } from "@/lib/log-error";
 
 const MIN_DIMENSION = 200;
 const MAX_DIMENSION = 8000;
@@ -386,6 +387,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("Analysis error:", err);
+    await logError({
+      errorType: "analyze_route_error",
+      message: err instanceof Error ? err.message : String(err),
+      endpoint: "/api/analyze",
+      stackTrace: err instanceof Error ? err.stack : null,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
