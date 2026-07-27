@@ -2,6 +2,27 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 2 — Batch 4: Fix M1 (server-side face/quality gate)
+
+**Date:** 2026-07-27
+**Status:** Complete — build green, pushing to branch.
+
+**Did:** Added two-layer validation to `/api/analyze` so non-face or low-quality
+images are rejected before wasting a Gemini API call:
+- **Image quality gate (sharp):** Validates image integrity and dimensions
+  (200x200 minimum, 8000x8000 maximum) before any LLM call. Rejects corrupt
+  files with a clear error message.
+- **Face detection (Gemini):** Added `is_face` boolean to the analysis prompt.
+  If Gemini determines the image doesn't contain a face, it returns
+  `{"is_face": false}` and the route rejects with a 422 instead of saving
+  a nonsensical analysis.
+
+**Tested:** `tsc --noEmit` ✅; `next build` ✅.
+
+**Next:** Batch 5 — M2 (auth hardening: leaked password protection, login throttling).
+
+---
+
 ## Phase 2 — Batch 3: Fix H2 (durable shared rate limiting)
 
 **Date:** 2026-07-27
