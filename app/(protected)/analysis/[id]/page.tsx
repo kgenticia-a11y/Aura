@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
@@ -50,8 +50,9 @@ interface Analysis {
 
 export default function AnalysisPage() {
   const params = useParams();
-  const router = useRouter();
-  const photoId = params.id as string;
+  // The route param may be an analysis id (from history/timeline links) or a
+  // photo id (from the fresh capture flow). We resolve both — see loadOrAnalyze.
+  const routeId = params.id as string;
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,22 +66,38 @@ export default function AnalysisPage() {
     async function loadOrAnalyze() {
       const supabase = createClient();
 
-      // First check if analysis already exists for this photo
-      const { data: existing } = await supabase
+      // 1. Treat the route param as an analysis id first (history / timeline
+      //    "View details" links point here). This is what previously failed.
+      const { data: byAnalysisId } = await supabase
         .from("skin_analyses")
         .select("*")
-        .eq("photo_id", photoId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+        .eq("id", routeId)
+        .maybeSingle();
 
-      if (existing) {
-        setAnalysis(existing);
+      if (byAnalysisId) {
+        setAnalysis(byAnalysisId);
         setLoading(false);
         return;
       }
 
-      // No existing analysis — trigger one
+      // 2. Otherwise treat it as a photo id and load that photo's analysis
+      //    (re-visiting an already-analyzed capture).
+      const { data: byPhotoId } = await supabase
+        .from("skin_analyses")
+        .select("*")
+        .eq("photo_id", routeId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (byPhotoId) {
+        setAnalysis(byPhotoId);
+        setLoading(false);
+        return;
+      }
+
+      // 3. No analysis exists yet — the param must be a fresh photo id, so
+      //    trigger a new analysis for it.
       setAnalyzing(true);
       setLoading(false);
 
@@ -88,7 +105,7 @@ export default function AnalysisPage() {
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ photo_id: photoId }),
+          body: JSON.stringify({ photo_id: routeId }),
         });
 
         if (!response.ok) {
@@ -118,7 +135,7 @@ export default function AnalysisPage() {
     }
 
     loadOrAnalyze();
-  }, [photoId]);
+  }, [routeId]);
 
   useEffect(() => {
     async function loadBenchmark() {
