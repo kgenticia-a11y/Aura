@@ -17,9 +17,9 @@ import {
   Download,
   Stethoscope,
   FlaskConical,
-  ExternalLink,
   Leaf,
 } from "lucide-react";
+import { WhereToBuy } from "@/components/where-to-buy";
 
 interface Concern {
   name: string;
@@ -538,9 +538,9 @@ export default function AnalysisPage() {
                     {rem.products.map((p) => (
                       <div
                         key={p.id}
-                        className="flex items-center gap-3 p-2.5 rounded-xl border border-border/40 bg-background/40"
+                        className="p-2.5 rounded-xl border border-border/40 bg-background/40"
                       >
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium truncate">
                               {p.name}
@@ -559,16 +559,13 @@ export default function AnalysisPage() {
                             Contains: {p.matched_actives.join(", ")}
                           </div>
                         </div>
-                        {p.purchase_url && (
-                          <a
-                            href={p.purchase_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-gold hover:underline"
-                          >
-                            Shop <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
+                        {/* F3 — what/why (above) + where to buy */}
+                        <WhereToBuy
+                          productName={p.name}
+                          brand={p.brand}
+                          priceTier={p.price_tier}
+                          purchaseUrl={p.purchase_url}
+                        />
                       </div>
                     ))}
                   </div>
