@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// One-time setup route to create missing tables
-// This uses the anon key so it can only create tables via RPC
-// For production, use Supabase Dashboard SQL Editor instead
+// Admin-only setup/diagnostic route. It reports whether a table exists and, if
+// not, which migration to run. That information (internal schema + migration
+// file paths) shouldn't be exposed to anonymous callers, so this is gated behind
+// an authenticated admin session. For production, prefer the Supabase Dashboard
+// SQL Editor over this endpoint.
 export async function POST() {
   try {
     const cookieStore = await cookies();
@@ -20,6 +22,24 @@ export async function POST() {
         },
       }
     );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.is_admin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Check if table already exists by trying to query it
     const { error } = await supabase
