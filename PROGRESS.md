@@ -2,6 +2,33 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 3 — Batch 6: F8 (real-time capture guidance)
+
+**Date:** 2026-07-28
+**Status:** Complete — build green, lint clean (no new warnings).
+
+**Did:**
+- `components/camera-capture.tsx` — real-time face detection + capture guidance:
+  - Uses browser-native `FaceDetector` API (Chrome/Edge) when available for
+    accurate face bounding-box analysis (position, size). Falls back to a
+    skin-tone hue heuristic (works across all Fitzpatrick tones) on Firefox/Safari.
+  - Real-time guidance overlays: "Position your face in the oval" → "Center your
+    face" → "Move a bit closer" → "Hold still..." → "Looking great — tap to capture".
+  - Oval guide changes color: white/dim (no face) → gold (face detected) → green
+    (ready to capture).
+  - Capture button pulses green when all conditions met (face detected + centered +
+    adequate size + good lighting for 5+ consecutive frames).
+  - Combined lighting + face analysis runs at ~10 fps (throttled) to keep CPU low.
+  - Guidance state resets cleanly via `stopCamera()` callback (no synchronous
+    setState in effect body).
+
+**Tested:**
+- `npx next build` — 36 routes, no errors.
+- `npx eslint` on camera component — zero new issues (pre-existing `<img>` warning
+  unchanged).
+
+**All F1–F8 features complete.** Full backlog delivered across 6 batches.
+
 ## Phase 3 — Batch 5: F7 (conversational follow-up assistant)
 
 **Date:** 2026-07-28

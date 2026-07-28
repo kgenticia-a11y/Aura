@@ -10,8 +10,19 @@ import {
   Check,
   X,
   Loader2,
+  User,
+  ZoomIn,
+  Move,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+type GuidanceHint =
+  | "searching"
+  | "center"
+  | "closer"
+  | "hold"
+  | "ready"
+  | null;
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob, resolution: string) => void;
@@ -24,6 +35,7 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
+  const guidanceCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -33,6 +45,10 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [flash, setFlash] = useState(false);
+  const [guidance, setGuidance] = useState<GuidanceHint>(null);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [readyToCapture, setReadyToCapture] = useState(false);
+  const readyFramesRef = useRef(0);
 
   // Open the device's native camera app (most reliable on mobile browsers)
   const openNativeCamera = useCallback(() => {
@@ -72,9 +88,6 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setCameraActive(true);
-
-        // Start lighting analysis
-        analyzeLighting();
       }
     } catch (err) {
       console.error("Camera error:", err);
@@ -84,13 +97,17 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
     }
   }, [facingMode]);
 
-  // Stop camera
+  // Stop camera and reset guidance state
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     setCameraActive(false);
+    setGuidance(null);
+    setFaceDetected(false);
+    setReadyToCapture(false);
+    readyFramesRef.current = 0;
   }, []);
 
   // Switch between front and back cameras
@@ -108,51 +125,152 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
     };
   }, []);
 
-  // Analyze lighting from video frame
-  const analyzeLighting = useCallback(() => {
-    const checkLighting = () => {
-      if (!videoRef.current || !canvasRef.current || !cameraActive) return;
+  // Combined lighting + face analysis loop. Runs at ~10 fps to keep CPU low.
+  // Uses the browser's native FaceDetector API when available (Chrome/Edge);
+  // falls back to a skin-tone hue heuristic on other browsers.
+  const analyzeFrameRef = useRef(false);
+  const faceDetectorRef = useRef<unknown>(null);
+
+  useEffect(() => {
+    if (!cameraActive) {
+      analyzeFrameRef.current = false;
+      return;
+    }
+
+    analyzeFrameRef.current = true;
+
+    // Try to create a native FaceDetector
+    if ("FaceDetector" in window && !faceDetectorRef.current) {
+      try {
+        faceDetectorRef.current = new (window as unknown as { FaceDetector: new () => unknown }).FaceDetector();
+      } catch {
+        faceDetectorRef.current = null;
+      }
+    }
+
+    let lastAnalysis = 0;
+    const INTERVAL = 100; // ~10 fps
+
+    const loop = async () => {
+      if (!analyzeFrameRef.current) return;
+
+      const now = performance.now();
+      if (now - lastAnalysis < INTERVAL) {
+        requestAnimationFrame(loop);
+        return;
+      }
+      lastAnalysis = now;
 
       const video = videoRef.current;
-      const canvas = canvasRef.current;
+      const canvas = guidanceCanvasRef.current ?? canvasRef.current;
+      if (!video || !canvas || video.readyState < 2) {
+        requestAnimationFrame(loop);
+        return;
+      }
+
       const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      if (!ctx) { requestAnimationFrame(loop); return; }
 
-      // Sample a small area for performance
-      canvas.width = 64;
-      canvas.height = 48;
-      ctx.drawImage(video, 0, 0, 64, 48);
+      // Sample at 160x120 for analysis
+      canvas.width = 160;
+      canvas.height = 120;
+      ctx.drawImage(video, 0, 0, 160, 120);
 
-      const imageData = ctx.getImageData(0, 0, 64, 48);
+      const imageData = ctx.getImageData(0, 0, 160, 120);
       const data = imageData.data;
 
+      // --- Lighting ---
       let totalBrightness = 0;
       for (let i = 0; i < data.length; i += 4) {
         totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
       }
       const avgBrightness = totalBrightness / (data.length / 4);
+      const lighting: "good" | "low" | "bright" =
+        avgBrightness < 60 ? "low" : avgBrightness > 220 ? "bright" : "good";
+      setLightingQuality(lighting);
 
-      if (avgBrightness < 60) {
-        setLightingQuality("low");
-      } else if (avgBrightness > 220) {
-        setLightingQuality("bright");
+      // --- Face detection ---
+      let detected = false;
+      let hint: GuidanceHint = "searching";
+
+      const detector = faceDetectorRef.current as { detect?: (source: HTMLVideoElement) => Promise<Array<{ boundingBox: DOMRect }>> } | null;
+      if (detector?.detect) {
+        try {
+          const faces = await detector.detect(video);
+          if (faces.length > 0) {
+            detected = true;
+            const box = faces[0].boundingBox;
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            const faceCenterX = (box.x + box.width / 2) / vw;
+            const faceCenterY = (box.y + box.height / 2) / vh;
+            const faceRatio = (box.width * box.height) / (vw * vh);
+
+            if (Math.abs(faceCenterX - 0.5) > 0.15 || Math.abs(faceCenterY - 0.45) > 0.15) {
+              hint = "center";
+            } else if (faceRatio < 0.04) {
+              hint = "closer";
+            } else if (lighting !== "good") {
+              hint = lighting === "low" ? "searching" : "searching";
+            } else {
+              hint = "ready";
+            }
+          }
+        } catch {
+          // FaceDetector failed — fall through to heuristic
+        }
+      }
+
+      // Fallback: skin-tone hue heuristic (counts pixels in skin-tone HSV range)
+      if (!detected && !detector?.detect) {
+        const centerX = Math.floor(160 * 0.3);
+        const centerW = Math.floor(160 * 0.4);
+        const centerY = Math.floor(120 * 0.2);
+        const centerH = Math.floor(120 * 0.5);
+        let skinPixels = 0;
+        let totalPixels = 0;
+
+        for (let y = centerY; y < centerY + centerH; y++) {
+          for (let x = centerX; x < centerX + centerW; x++) {
+            const i = (y * 160 + x) * 4;
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            // Simple skin-tone filter (works across Fitzpatrick tones)
+            if (r > 60 && g > 40 && b > 20 && r > g && r > b &&
+                Math.abs(r - g) > 10 && r - b > 15) {
+              skinPixels++;
+            }
+            totalPixels++;
+          }
+        }
+
+        const skinRatio = skinPixels / totalPixels;
+        if (skinRatio > 0.25) {
+          detected = true;
+          hint = skinRatio > 0.35 && lighting === "good" ? "ready" : "hold";
+        }
+      }
+
+      setFaceDetected(detected);
+      setGuidance(detected ? hint : "searching");
+
+      // Require several consecutive "ready" frames before enabling capture
+      if (hint === "ready") {
+        readyFramesRef.current++;
+        if (readyFramesRef.current >= 5) {
+          setReadyToCapture(true);
+        }
       } else {
-        setLightingQuality("good");
+        readyFramesRef.current = 0;
+        setReadyToCapture(false);
       }
 
-      if (cameraActive) {
-        requestAnimationFrame(checkLighting);
-      }
+      requestAnimationFrame(loop);
     };
 
-    requestAnimationFrame(checkLighting);
-  }, [cameraActive]);
+    requestAnimationFrame(loop);
 
-  useEffect(() => {
-    if (cameraActive) {
-      analyzeLighting();
-    }
-  }, [cameraActive, analyzeLighting]);
+    return () => { analyzeFrameRef.current = false; };
+  }, [cameraActive]);
 
   // Capture photo at full resolution
   const capturePhoto = useCallback(() => {
@@ -274,8 +392,9 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
 
   return (
     <div className="w-full max-w-lg mx-auto">
-      {/* Hidden canvas for processing */}
+      {/* Hidden canvases for processing */}
       <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={guidanceCanvasRef} className="hidden" />
       <input
         ref={fileInputRef}
         type="file"
@@ -319,10 +438,58 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
               <div className="absolute inset-0 bg-white animate-pulse pointer-events-none" />
             )}
 
-            {/* Face alignment guide */}
+            {/* Face alignment guide — color reflects detection state */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[70%] h-[78%] rounded-[50%] border-2 border-gold/50 mt-[-4%]" />
+              <div
+                className={`w-[70%] h-[78%] rounded-[50%] border-2 mt-[-4%] transition-colors duration-300 ${
+                  readyToCapture
+                    ? "border-green-400/70"
+                    : faceDetected
+                    ? "border-gold/60"
+                    : "border-white/30"
+                }`}
+              />
             </div>
+
+            {/* F8 — Real-time capture guidance */}
+            {guidance && guidance !== "ready" && (
+              <div className="absolute bottom-24 inset-x-0 flex justify-center pointer-events-none">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-md text-white text-sm font-medium">
+                  {guidance === "searching" && (
+                    <>
+                      <User className="w-4 h-4 text-amber-400" />
+                      <span>Position your face in the oval</span>
+                    </>
+                  )}
+                  {guidance === "center" && (
+                    <>
+                      <Move className="w-4 h-4 text-amber-400" />
+                      <span>Center your face</span>
+                    </>
+                  )}
+                  {guidance === "closer" && (
+                    <>
+                      <ZoomIn className="w-4 h-4 text-amber-400" />
+                      <span>Move a bit closer</span>
+                    </>
+                  )}
+                  {guidance === "hold" && (
+                    <>
+                      <Check className="w-4 h-4 text-gold" />
+                      <span>Hold still...</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            {readyToCapture && (
+              <div className="absolute bottom-24 inset-x-0 flex justify-center pointer-events-none">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 backdrop-blur-md border border-green-500/30 text-green-400 text-sm font-medium">
+                  <Check className="w-4 h-4" />
+                  <span>Looking great — tap to capture</span>
+                </div>
+              </div>
+            )}
 
             {/* Top bar: lighting indicator + switch camera */}
             <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-2">
@@ -360,13 +527,19 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
               </button>
             </div>
 
-            {/* Capture button */}
+            {/* Capture button — pulses when ready */}
             <div className="absolute bottom-5 inset-x-0 flex justify-center">
               <button
                 onClick={capturePhoto}
-                className="w-20 h-20 rounded-full border-4 border-gold bg-gold/20 hover:bg-gold/40 transition-all duration-200 flex items-center justify-center active:scale-95"
+                className={`w-20 h-20 rounded-full border-4 transition-all duration-300 flex items-center justify-center active:scale-95 ${
+                  readyToCapture
+                    ? "border-green-400 bg-green-400/20 hover:bg-green-400/40 animate-pulse"
+                    : "border-gold bg-gold/20 hover:bg-gold/40"
+                }`}
               >
-                <div className="w-16 h-16 rounded-full bg-gold" />
+                <div className={`w-16 h-16 rounded-full transition-colors ${
+                  readyToCapture ? "bg-green-400" : "bg-gold"
+                }`} />
               </button>
             </div>
           </>
