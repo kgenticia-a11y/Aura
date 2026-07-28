@@ -139,7 +139,7 @@ function DermPageContent() {
       </div>
 
       {/* Premium gate */}
-      {isPremium === false && (
+      {isPremium !== true && (
         <div className="p-6 rounded-2xl border border-gold/30 bg-gold/5 mb-8 text-center">
           <Crown className="w-10 h-10 text-gold mx-auto mb-3" />
           <h2 className="text-lg font-bold mb-2">Premium Feature</h2>
@@ -158,7 +158,7 @@ function DermPageContent() {
       )}
 
       {/* Request form */}
-      {isPremium !== false && (
+      {isPremium === true && (
       <div className="p-5 rounded-2xl border border-border/50 bg-card/50 mb-8">
         <h2 className="text-lg font-semibold mb-4">New Request</h2>
 

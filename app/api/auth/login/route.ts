@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
   }
 
   const normEmail = email.toLowerCase().trim();
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
-  const { ok } = await rateLimit(`login:${normEmail}`, 5, 60_000);
+  const { ok } = await rateLimit(`login:${ip}:${normEmail}`, 5, 60_000);
   if (!ok) {
     return NextResponse.json(
       { error: "Too many login attempts. Please wait a minute and try again." },

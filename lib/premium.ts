@@ -8,11 +8,15 @@ export async function getPremiumStatus(
   supabase: SupabaseClient,
   userId: string
 ): Promise<PremiumStatus> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("is_premium")
     .eq("id", userId)
     .single();
+
+  if (error) {
+    console.error("getPremiumStatus failed for user", userId, error.message);
+  }
 
   return { isPremium: data?.is_premium === true };
 }

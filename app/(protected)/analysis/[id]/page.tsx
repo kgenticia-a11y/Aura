@@ -441,7 +441,7 @@ export default function AnalysisPage() {
 
       {/* F4 — Skin age + expanded attributes (premium only) */}
       {(analysis.skin_age || analysis.attributes) && (
-        isPremium === false ? (
+        isPremium !== true ? (
           <div className="mb-6 p-5 rounded-2xl border border-gold/20 bg-gold/5">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-5 h-5 text-gold" />

@@ -40,13 +40,14 @@ export async function POST(request: NextRequest) {
   }
 
   const normEmail = email.toLowerCase().trim();
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   const pwError = validatePassword(password);
   if (pwError) {
     return NextResponse.json({ error: pwError }, { status: 400 });
   }
 
-  const { ok } = await rateLimit(`signup:${normEmail}`, 3, 300_000);
+  const { ok } = await rateLimit(`signup:${ip}:${normEmail}`, 3, 300_000);
   if (!ok) {
     return NextResponse.json(
       { error: "Too many signup attempts. Please wait a few minutes." },

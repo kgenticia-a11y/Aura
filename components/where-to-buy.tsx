@@ -25,7 +25,7 @@ export function WhereToBuy({
   brand,
   priceTier,
   purchaseUrl,
-  isPremium = true,
+  isPremium = false,
 }: WhereToBuyProps) {
   const [expanded, setExpanded] = useState(false);
   const [locating, setLocating] = useState(false);

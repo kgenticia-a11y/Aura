@@ -211,7 +211,7 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
             } else if (faceRatio < 0.04) {
               hint = "closer";
             } else if (lighting !== "good") {
-              hint = lighting === "low" ? "searching" : "searching";
+              hint = "hold";
             } else {
               hint = "ready";
             }
@@ -222,7 +222,7 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
       }
 
       // Fallback: skin-tone hue heuristic (counts pixels in skin-tone HSV range)
-      if (!detected && !detector?.detect) {
+      if (!detected) {
         const centerX = Math.floor(160 * 0.3);
         const centerW = Math.floor(160 * 0.4);
         const centerY = Math.floor(120 * 0.2);

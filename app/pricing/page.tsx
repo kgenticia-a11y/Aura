@@ -42,7 +42,10 @@ export default function PricingPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setIsPremium(false);
+        return;
+      }
       const { data } = await supabase
         .from("profiles")
         .select("is_premium")
@@ -114,12 +117,12 @@ export default function PricingPage() {
         {/* Premium tier */}
         <div
           className={`relative rounded-2xl border p-6 ${
-            isPremium
+            isPremium === true
               ? "border-gold/40 bg-gold/5"
               : "border-border/50 bg-card/50"
           }`}
         >
-          {isPremium && (
+          {isPremium === true && (
             <span className="absolute -top-3 left-6 px-3 py-0.5 text-xs font-semibold rounded-full bg-gold text-charcoal">
               Current plan
             </span>
