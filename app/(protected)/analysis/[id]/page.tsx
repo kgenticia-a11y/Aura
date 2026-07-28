@@ -21,6 +21,7 @@ import {
   Crown,
 } from "lucide-react";
 import { WhereToBuy } from "@/components/where-to-buy";
+import { AnalysisChat } from "@/components/analysis-chat";
 
 interface Concern {
   name: string;
@@ -808,6 +809,12 @@ export default function AnalysisPage() {
           Take Another Photo
         </Link>
       </div>
+
+      {/* F7 — Conversational follow-up assistant */}
+      <AnalysisChat
+        analysisId={analysis.id}
+        isPremium={isPremium ?? false}
+      />
     </div>
   );
 }

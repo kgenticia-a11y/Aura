@@ -61,3 +61,8 @@ export const dermConsultResponseSchema = z.object({
   dermatologist_notes: z.string().trim().min(1).max(4000),
   status: z.enum(["in_review", "responded", "closed"]).default("responded"),
 });
+
+export const chatSchema = z.object({
+  analysis_id: z.string().uuid("analysis_id must be a valid UUID"),
+  message: z.string().trim().min(1, "Message cannot be empty").max(500, "Message too long"),
+});

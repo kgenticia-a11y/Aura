@@ -2,6 +2,30 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 3 — Batch 5: F7 (conversational follow-up assistant)
+
+**Date:** 2026-07-28
+**Status:** Complete — build green, lint clean.
+
+**Did:**
+- `app/api/chat/route.ts` — POST endpoint: accepts `{ analysis_id, message }`,
+  loads user's analysis context, sends to Gemini with a scoped system prompt
+  (cosmetic-only, 150-word limit, references their specific findings). Rate
+  limited 20 msgs/min. Premium-gated (403 for free users).
+- `components/analysis-chat.tsx` — floating chat bubble on the analysis page.
+  Opens to a chat panel with suggestion chips, message history (session-only,
+  not persisted), typing indicator, and the "not medical advice" disclaimer.
+  Shows a premium gate card for free users.
+- `lib/validation.ts` — added `chatSchema` (analysis_id UUID + message 1–500 chars).
+- Analysis page — wired `<AnalysisChat>` component, passes `analysisId` and
+  `isPremium`.
+
+**Tested:**
+- `npx next build` — 36 routes, no errors.
+- `npx eslint` on all changed files — zero issues.
+
+**Next:** Phase 3 Batch 6 — F8 (real-time capture guidance).
+
 ## Phase 3 — Batch 4: F6 (premium tier gating)
 
 **Date:** 2026-07-28
