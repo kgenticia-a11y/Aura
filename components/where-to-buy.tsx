@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingBag, MapPin, ExternalLink, Loader2, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { ShoppingBag, MapPin, ExternalLink, Loader2, ChevronDown, Crown } from "lucide-react";
 import {
   buildOnlineBuyUrl,
   getNearbyStoreLinks,
@@ -13,6 +14,7 @@ interface WhereToBuyProps {
   brand: string | null;
   priceTier: string | null;
   purchaseUrl: string | null;
+  isPremium?: boolean;
 }
 
 // F3 — "Where to buy": online link + privacy-preserving nearest-retail lookup.
@@ -23,6 +25,7 @@ export function WhereToBuy({
   brand,
   priceTier,
   purchaseUrl,
+  isPremium = true,
 }: WhereToBuyProps) {
   const [expanded, setExpanded] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -82,9 +85,20 @@ export function WhereToBuy({
             {purchaseUrl ? "Buy online" : "Shop online"}
           </a>
 
-          {/* Nearby */}
+          {/* Nearby — premium only */}
           <div>
-            {!stores ? (
+            {!isPremium ? (
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-gold"
+              >
+                <Crown className="w-3.5 h-3.5 text-gold" />
+                Find in a store near me
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gold/10 text-gold font-semibold">
+                  Premium
+                </span>
+              </Link>
+            ) : !stores ? (
               <button
                 onClick={findNearby}
                 disabled={locating}

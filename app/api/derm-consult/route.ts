@@ -6,6 +6,7 @@ import {
   dermConsultSchema,
   dermConsultResponseSchema,
 } from "@/lib/validation";
+import { getPremiumStatus } from "@/lib/premium";
 
 // GET — list the current user's consultation requests.
 // Admins additionally pass ?queue=1 to see the full pending queue.
@@ -74,6 +75,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a minute." },
       { status: 429 }
+    );
+  }
+
+  const { isPremium } = await getPremiumStatus(supabase, user.id);
+  if (!isPremium) {
+    return NextResponse.json(
+      { error: "Dermatologist consultations are a Premium feature. Upgrade your plan to access expert reviews.", upgrade: true },
+      { status: 403 }
     );
   }
 

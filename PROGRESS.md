@@ -2,6 +2,40 @@
 
 Running log for the multi-phase audit + feature build. Newest entries on top.
 
+## Phase 3 — Batch 4: F6 (premium tier gating)
+
+**Date:** 2026-07-28
+**Status:** Complete — build green, lint clean (no new warnings).
+
+**Did:**
+- `supabase/migrations/20260728_premium_tier.sql` — adds `is_premium BOOLEAN
+  DEFAULT false` to `profiles`. Manually settable; Stripe deferred.
+- `lib/premium.ts` — server helper: `getPremiumStatus()` reads `profiles.is_premium`,
+  exports `FREE_LIMITS` and `PREMIUM_LIMITS` constants for tier-aware gating.
+- `/api/analyze` — daily limit now tier-aware (free: 2/day, premium: 10/day).
+  Error response includes `upgrade: true` flag for free users.
+- `/api/scan-ingredients` — daily scan limit added (free: 5/day, premium: 50/day).
+- `/api/derm-consult` POST — gated premium-only (403 with upgrade hint for free).
+- Derm page (`app/(protected)/derm/page.tsx`) — premium gate UI: free users see
+  an upgrade card instead of the request form; history still visible.
+- WhereToBuy component — "Find in a store near me" gated behind premium. Free
+  users see the link with a "Premium" badge pointing to `/pricing`.
+- Analysis page (`app/(protected)/analysis/[id]/page.tsx`) — skin-age +
+  attributes section gated behind premium. Free users see a teaser card with
+  upgrade CTA. `isPremium` passed to WhereToBuy for store-finder gating.
+- Dashboard — upgrade nudge card for free users (between seasonal tip and AI
+  insights). Profile query now includes `is_premium`.
+- Pricing page (`app/(protected)/pricing/page.tsx`) — full pricing page with
+  Free vs Premium comparison, current-plan indicator, and upgrade CTA (Stripe
+  toast placeholder). Replaced the old static public pricing page.
+
+**Tested:**
+- `npx next build` — passes (35 routes, no errors).
+- `npx eslint` on all changed files — zero new issues.
+- Pre-existing dashboard `Date.now()` purity warnings unchanged.
+
+**Next:** Phase 3 Batch 5 — F7 (conversational follow-up assistant).
+
 ## Phase 3 — Batch 3: F4 (skin-age + attributes) + F5 (reassessment cadence)
 
 **Date:** 2026-07-27

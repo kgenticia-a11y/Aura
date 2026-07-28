@@ -12,8 +12,10 @@ import {
   Clock,
   CheckCircle2,
   MessageSquare,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 interface Consultation {
   id: string;
@@ -47,9 +49,23 @@ function DermPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
 
   async function loadConsultations() {
     try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_premium")
+          .eq("id", user.id)
+          .single();
+        setIsPremium(profile?.is_premium === true);
+      }
+
       const res = await fetch("/api/derm-consult");
       if (res.ok) {
         const data = await res.json();
@@ -122,7 +138,27 @@ function DermPageContent() {
         </p>
       </div>
 
+      {/* Premium gate */}
+      {isPremium === false && (
+        <div className="p-6 rounded-2xl border border-gold/30 bg-gold/5 mb-8 text-center">
+          <Crown className="w-10 h-10 text-gold mx-auto mb-3" />
+          <h2 className="text-lg font-bold mb-2">Premium Feature</h2>
+          <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+            Dermatologist consultations are available on the Premium plan.
+            Upgrade to get expert reviews of your skin concerns.
+          </p>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gold text-charcoal hover:bg-gold-light font-semibold glow-gold transition-all duration-300"
+          >
+            <Crown className="w-4 h-4" />
+            Upgrade to Premium
+          </Link>
+        </div>
+      )}
+
       {/* Request form */}
+      {isPremium !== false && (
       <div className="p-5 rounded-2xl border border-border/50 bg-card/50 mb-8">
         <h2 className="text-lg font-semibold mb-4">New Request</h2>
 
@@ -183,10 +219,10 @@ function DermPageContent() {
         </Button>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Dermatologist reviews are a premium feature, typically $20–$30 per
-          consultation.
+          Dermatologist reviews typically cost $20–$30 per consultation.
         </p>
       </div>
+      )}
 
       {/* History */}
       <div>

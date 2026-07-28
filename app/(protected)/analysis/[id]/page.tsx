@@ -18,6 +18,7 @@ import {
   Stethoscope,
   FlaskConical,
   Leaf,
+  Crown,
 } from "lucide-react";
 import { WhereToBuy } from "@/components/where-to-buy";
 
@@ -95,10 +96,24 @@ export default function AnalysisPage() {
   const [sharing, setSharing] = useState(false);
   const [remediation, setRemediation] = useState<ConcernRemediation[] | null>(null);
   const [remediationLoading, setRemediationLoading] = useState(false);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
 
   useEffect(() => {
     async function loadOrAnalyze() {
       const supabase = createClient();
+
+      // Load premium status
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (currentUser) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_premium")
+          .eq("id", currentUser.id)
+          .single();
+        setIsPremium(profile?.is_premium === true);
+      }
 
       // 1. Treat the route param as an analysis id first (history / timeline
       //    "View details" links point here). This is what previously failed.
@@ -423,8 +438,30 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* F4 — Skin age + expanded attributes */}
+      {/* F4 — Skin age + expanded attributes (premium only) */}
       {(analysis.skin_age || analysis.attributes) && (
+        isPremium === false ? (
+          <div className="mb-6 p-5 rounded-2xl border border-gold/20 bg-gold/5">
+            <div className="flex items-center gap-2 mb-2">
+              <Crown className="w-5 h-5 text-gold" />
+              <h2 className="text-lg font-semibold">Skin Attributes</h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gold/15 text-gold font-medium">
+                Premium
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Unlock detailed skin-age estimation, pore refinement, firmness,
+              radiance, and tone evenness scores with Premium.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-gold hover:underline"
+            >
+              <Crown className="w-4 h-4" />
+              Upgrade to see your scores
+            </Link>
+          </div>
+        ) : (
         <div className="mb-6 p-5 rounded-2xl border border-border/50 bg-card/50">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
@@ -483,6 +520,7 @@ export default function AnalysisPage() {
             biological or medical age. Higher attribute scores are better.
           </p>
         </div>
+        )
       )}
 
       {/* Concerns */}
@@ -629,6 +667,7 @@ export default function AnalysisPage() {
                           brand={p.brand}
                           priceTier={p.price_tier}
                           purchaseUrl={p.purchase_url}
+                          isPremium={isPremium ?? false}
                         />
                       </div>
                     ))}

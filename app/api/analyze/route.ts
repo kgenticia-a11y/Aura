@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, analyzeSchema } from "@/lib/validation";
 import { logError } from "@/lib/log-error";
+import { getPremiumStatus, FREE_LIMITS, PREMIUM_LIMITS } from "@/lib/premium";
 
 const MIN_DIMENSION = 200;
 const MAX_DIMENSION = 8000;
@@ -130,7 +131,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Photo not found" }, { status: 404 });
     }
 
-    // Rate limiting check: max 5 analyses per user per day
+    // Tier-aware daily limit
+    const { isPremium } = await getPremiumStatus(supabase, user.id);
+    const dailyLimit = isPremium ? PREMIUM_LIMITS.analysesPerDay : FREE_LIMITS.analysesPerDay;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -140,11 +144,11 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .gte("created_at", today.toISOString());
 
-    if (count && count >= 5) {
-      return NextResponse.json(
-        { error: "Daily analysis limit reached (5/day). Try again tomorrow." },
-        { status: 429 }
-      );
+    if (count && count >= dailyLimit) {
+      const msg = isPremium
+        ? `Daily analysis limit reached (${dailyLimit}/day). Try again tomorrow.`
+        : `Free plan limit reached (${dailyLimit}/day). Upgrade to Premium for more analyses.`;
+      return NextResponse.json({ error: msg, upgrade: !isPremium }, { status: 429 });
     }
 
     // Fetch user's Fitzpatrick skin tone for inclusive, tone-aware analysis
