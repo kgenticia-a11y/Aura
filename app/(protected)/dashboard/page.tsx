@@ -14,6 +14,7 @@ import {
   Flame,
   CalendarClock,
   RefreshCw,
+  Crown,
 } from "lucide-react";
 import Link from "next/link";
 import { SkinInsights } from "@/components/skin-insights";
@@ -29,7 +30,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, is_premium")
     .eq("id", user!.id)
     .single();
 
@@ -304,6 +305,30 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Premium upgrade nudge */}
+      {!profile?.is_premium && (
+        <div className="mb-6 p-4 rounded-2xl border border-gold/30 bg-gradient-to-r from-gold/5 via-card to-gold/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gold/15 flex items-center justify-center shrink-0">
+              <Crown className="w-5 h-5 text-gold" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Unlock Premium</p>
+              <p className="text-xs text-muted-foreground">
+                More analyses, ingredient scans, derm consults, skin-age
+                tracking, and store finder.
+              </p>
+            </div>
+            <Link
+              href="/pricing"
+              className="shrink-0 px-4 py-2 rounded-lg bg-gold text-charcoal text-sm font-semibold hover:bg-gold-light transition-colors"
+            >
+              Upgrade
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* AI Insights Narrative */}
       {hasAnalyses && <SkinInsights />}

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateBody, scanIngredientsSchema } from "@/lib/validation";
+import { getPremiumStatus, FREE_LIMITS, PREMIUM_LIMITS } from "@/lib/premium";
 import {
   detectScanConflicts,
   detectAllergyMatches,
@@ -80,6 +81,26 @@ export async function POST(request: NextRequest) {
         { error: "Too many requests. Please wait a minute." },
         { status: 429 }
       );
+    }
+
+    // Tier-aware daily scan limit
+    const { isPremium } = await getPremiumStatus(supabase, user.id);
+    const dailyScanLimit = isPremium ? PREMIUM_LIMITS.scansPerDay : FREE_LIMITS.scansPerDay;
+
+    const scanToday = new Date();
+    scanToday.setHours(0, 0, 0, 0);
+
+    const { count: scanCount } = await supabase
+      .from("ingredient_scans")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", scanToday.toISOString());
+
+    if (scanCount && scanCount >= dailyScanLimit) {
+      const msg = isPremium
+        ? `Daily scan limit reached (${dailyScanLimit}/day). Try again tomorrow.`
+        : `Free plan limit reached (${dailyScanLimit}/day). Upgrade to Premium for more scans.`;
+      return NextResponse.json({ error: msg, upgrade: !isPremium }, { status: 429 });
     }
 
     let rawBody: unknown;
