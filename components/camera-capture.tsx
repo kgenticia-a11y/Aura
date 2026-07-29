@@ -20,6 +20,7 @@ type GuidanceHint =
   | "searching"
   | "center"
   | "closer"
+  | "lighting"
   | "hold"
   | "ready"
   | null;
@@ -128,16 +129,18 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
   // Combined lighting + face analysis loop. Runs at ~10 fps to keep CPU low.
   // Uses the browser's native FaceDetector API when available (Chrome/Edge);
   // falls back to a skin-tone hue heuristic on other browsers.
-  const analyzeFrameRef = useRef(false);
+  // A monotonically-increasing generation id identifies the currently-active
+  // loop. Each effect run (and its cleanup) bumps the id, so a stale loop —
+  // e.g. from StrictMode's double-invoke or a rapid camera restart — sees a
+  // mismatch and exits instead of running concurrently with the new one.
+  const analyzeGenerationRef = useRef(0);
   const faceDetectorRef = useRef<unknown>(null);
 
   useEffect(() => {
-    if (!cameraActive) {
-      analyzeFrameRef.current = false;
-      return;
-    }
+    if (!cameraActive) return;
 
-    analyzeFrameRef.current = true;
+    analyzeGenerationRef.current += 1;
+    const generation = analyzeGenerationRef.current;
 
     // Try to create a native FaceDetector
     if ("FaceDetector" in window && !faceDetectorRef.current) {
@@ -149,14 +152,15 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
     }
 
     let lastAnalysis = 0;
+    let rafId = 0;
     const INTERVAL = 100; // ~10 fps
 
     const loop = async () => {
-      if (!analyzeFrameRef.current) return;
+      if (analyzeGenerationRef.current !== generation) return;
 
       const now = performance.now();
       if (now - lastAnalysis < INTERVAL) {
-        requestAnimationFrame(loop);
+        rafId = requestAnimationFrame(loop);
         return;
       }
       lastAnalysis = now;
@@ -164,16 +168,21 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
       const video = videoRef.current;
       const canvas = guidanceCanvasRef.current ?? canvasRef.current;
       if (!video || !canvas || video.readyState < 2) {
-        requestAnimationFrame(loop);
+        rafId = requestAnimationFrame(loop);
         return;
       }
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { requestAnimationFrame(loop); return; }
+      // Read-back happens ~10x/second, so hint the browser to keep the canvas
+      // on a CPU-readable backing store to avoid per-frame GPU readback stalls.
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) { rafId = requestAnimationFrame(loop); return; }
 
-      // Sample at 160x120 for analysis
-      canvas.width = 160;
-      canvas.height = 120;
+      // Sample at 160x120 for analysis. Assigning width/height resets the
+      // bitmap, so only do it when the size actually needs to change.
+      if (canvas.width !== 160 || canvas.height !== 120) {
+        canvas.width = 160;
+        canvas.height = 120;
+      }
       ctx.drawImage(video, 0, 0, 160, 120);
 
       const imageData = ctx.getImageData(0, 0, 160, 120);
@@ -192,11 +201,17 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
       // --- Face detection ---
       let detected = false;
       let hint: GuidanceHint = "searching";
+      // Only trust the native detector when a detect() call actually returns.
+      // If detect() throws (broken/experimental impl), this stays false so the
+      // skin-tone heuristic still runs instead of stranding the user.
+      let nativeDetectionSucceeded = false;
 
       const detector = faceDetectorRef.current as { detect?: (source: HTMLVideoElement) => Promise<Array<{ boundingBox: DOMRect }>> } | null;
       if (detector?.detect) {
         try {
           const faces = await detector.detect(video);
+          if (analyzeGenerationRef.current !== generation) return;
+          nativeDetectionSucceeded = true;
           if (faces.length > 0) {
             detected = true;
             const box = faces[0].boundingBox;
@@ -211,7 +226,7 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
             } else if (faceRatio < 0.04) {
               hint = "closer";
             } else if (lighting !== "good") {
-              hint = lighting === "low" ? "searching" : "searching";
+              hint = "lighting";
             } else {
               hint = "ready";
             }
@@ -221,8 +236,9 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
         }
       }
 
-      // Fallback: skin-tone hue heuristic (counts pixels in skin-tone HSV range)
-      if (!detected && !detector?.detect) {
+      // Fallback: skin-tone hue heuristic (counts pixels in skin-tone HSV range).
+      // Runs when no native detector exists OR the native detect() threw.
+      if (!detected && !nativeDetectionSucceeded) {
         const centerX = Math.floor(160 * 0.3);
         const centerW = Math.floor(160 * 0.4);
         const centerY = Math.floor(120 * 0.2);
@@ -250,26 +266,45 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
         }
       }
 
-      setFaceDetected(detected);
-      setGuidance(detected ? hint : "searching");
+      // Bail before touching state if the camera was stopped/switched while
+      // detect() was in flight, so we don't clobber the reset state.
+      if (analyzeGenerationRef.current !== generation) return;
 
-      // Require several consecutive "ready" frames before enabling capture
+      // Debounce the ready state: only surface the green "ready" affordance
+      // after several consecutive ready frames to avoid flicker. This gates the
+      // visual cue, not the capture button, which stays available throughout.
+      let nextReady = false;
       if (hint === "ready") {
         readyFramesRef.current++;
         if (readyFramesRef.current >= 5) {
-          setReadyToCapture(true);
+          nextReady = true;
         }
       } else {
         readyFramesRef.current = 0;
-        setReadyToCapture(false);
       }
 
-      requestAnimationFrame(loop);
+      setFaceDetected(detected);
+      setReadyToCapture(nextReady);
+      // While ramping up to the confirmed-ready state, keep showing "hold still"
+      // rather than blanking the guidance for the ~500ms debounce window.
+      const displayHint: GuidanceHint = detected
+        ? hint === "ready" && !nextReady
+          ? "hold"
+          : hint
+        : "searching";
+      setGuidance(displayHint);
+
+      rafId = requestAnimationFrame(loop);
     };
 
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
 
-    return () => { analyzeFrameRef.current = false; };
+    return () => {
+      // Invalidate this generation and cancel any pending frame so the loop
+      // cannot resume after teardown.
+      analyzeGenerationRef.current += 1;
+      cancelAnimationFrame(rafId);
+    };
   }, [cameraActive]);
 
   // Capture photo at full resolution
@@ -471,6 +506,16 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
                     <>
                       <ZoomIn className="w-4 h-4 text-amber-400" />
                       <span>Move a bit closer</span>
+                    </>
+                  )}
+                  {guidance === "lighting" && (
+                    <>
+                      <SunDim className="w-4 h-4 text-amber-400" />
+                      <span>
+                        {lightingQuality === "low"
+                          ? "Find some more light"
+                          : "Reduce the brightness"}
+                      </span>
                     </>
                   )}
                   {guidance === "hold" && (
