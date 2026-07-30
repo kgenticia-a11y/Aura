@@ -131,18 +131,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Photo not found" }, { status: 404 });
     }
 
-    // Tier-aware daily limit
-    const { isPremium } = await getPremiumStatus(supabase, user.id);
-    const dailyLimit = isPremium ? PREMIUM_LIMITS.analysesPerDay : FREE_LIMITS.analysesPerDay;
-
+    // Run independent DB lookups and the signed-URL fetch in parallel so the
+    // total pre-Gemini latency is one round-trip instead of four.
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const { count } = await supabase
-      .from("skin_analyses")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .gte("created_at", today.toISOString());
+    const [premiumResult, countResult, profileResult, signedUrlResult] =
+      await Promise.all([
+        getPremiumStatus(supabase, user.id),
+        supabase
+          .from("skin_analyses")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("created_at", today.toISOString()),
+        supabase
+          .from("skin_profiles")
+          .select("fitzpatrick_scale")
+          .eq("user_id", user.id)
+          .single(),
+        supabase.storage
+          .from("selfies")
+          .createSignedUrl(photo.storage_path, 3600),
+      ]);
+
+    // Tier-aware daily limit
+    const { isPremium } = premiumResult;
+    const dailyLimit = isPremium ? PREMIUM_LIMITS.analysesPerDay : FREE_LIMITS.analysesPerDay;
+    const { count } = countResult;
 
     if (count && count >= dailyLimit) {
       const msg = isPremium
@@ -151,19 +166,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: msg, upgrade: !isPremium }, { status: 429 });
     }
 
-    // Fetch user's Fitzpatrick skin tone for inclusive, tone-aware analysis
-    const { data: skinProfile } = await supabase
-      .from("skin_profiles")
-      .select("fitzpatrick_scale")
-      .eq("user_id", user.id)
-      .single();
+    const analysisPrompt = buildAnalysisPrompt(profileResult.data?.fitzpatrick_scale ?? null);
 
-    const analysisPrompt = buildAnalysisPrompt(skinProfile?.fitzpatrick_scale ?? null);
-
-    // Get signed URL for the photo
-    const { data: signedUrlData, error: signedError } = await supabase.storage
-      .from("selfies")
-      .createSignedUrl(photo.storage_path, 3600); // 1 hour expiry
+    const { data: signedUrlData, error: signedError } = signedUrlResult;
 
     if (signedError || !signedUrlData) {
       return NextResponse.json(
@@ -283,7 +288,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Real Gemini call — capped output to minimize token spend
-    const genai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const genai = new GoogleGenAI({
+      apiKey: geminiApiKey,
+      httpOptions: { timeout: 30_000 },
+    });
 
     let retries = 2;
     let geminiResult: string | null = null;

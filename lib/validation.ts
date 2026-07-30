@@ -39,7 +39,7 @@ export const scanIngredientsSchema = z
   .object({
     image: z
       .string()
-      .max(8_000_000, "Image is too large")
+      .max(20_000_000, "Image is too large")
       .optional(),
     mime_type: z
       .string()

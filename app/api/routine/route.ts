@@ -161,14 +161,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get latest analysis
-    const { data: analysis } = await supabase
-      .from("skin_analyses")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    // Run independent DB lookups in parallel to reduce pre-Gemini latency.
+    const [analysisResult, profileResult, feedbackResult, trendResult] =
+      await Promise.all([
+        supabase
+          .from("skin_analyses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single(),
+        supabase
+          .from("skin_profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("routine_feedback")
+          .select("overall_rating, skin_feel, what_improved, what_worsened")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("skin_analyses")
+          .select("health_score, skin_type, hydration_level, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(3),
+      ]);
+
+    const { data: analysis } = analysisResult;
 
     if (!analysis) {
       return NextResponse.json(
@@ -177,28 +199,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get skin profile
-    const { data: skinProfile } = await supabase
-      .from("skin_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    // Fetch past feedback for adaptive learning
-    const { data: pastFeedback } = await supabase
-      .from("routine_feedback")
-      .select("overall_rating, skin_feel, what_improved, what_worsened")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    // Fetch last 3 analyses for trend detection
-    const { data: pastAnalyses } = await supabase
-      .from("skin_analyses")
-      .select("health_score, skin_type, hydration_level, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(3);
+    const { data: skinProfile } = profileResult;
+    const { data: pastFeedback } = feedbackResult;
+    const { data: pastAnalyses } = trendResult;
 
     // Deactivate previous routines
     await supabase
@@ -313,32 +316,42 @@ export async function POST(request: NextRequest) {
         ],
       };
     } else {
-      // Real Gemini call
-      const genai = new GoogleGenAI({ apiKey: geminiApiKey });
-
-      const response = await genai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: {
-          // gemini-2.5-flash thinks by default, adding latency and token cost.
-          // Routine generation only needs the JSON output, so disable thinking.
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      const genai = new GoogleGenAI({
+        apiKey: geminiApiKey,
+        httpOptions: { timeout: 30_000 },
       });
 
-      const text = response.text || "";
-      const cleaned = text
-        .replace(/```json\s*/g, "")
-        .replace(/```\s*/g, "")
-        .trim();
+      let retries = 2;
 
-      try {
-        routineData = JSON.parse(cleaned);
-      } catch {
-        return NextResponse.json(
-          { error: "AI returned invalid routine. Please try again." },
-          { status: 500 }
-        );
+      while (retries > 0) {
+        try {
+          const response = await genai.models.generateContent({
+            model: GEMINI_MODEL,
+            config: {
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+          });
+
+          const text = response.text || "";
+          const cleaned = text
+            .replace(/```json\s*/g, "")
+            .replace(/```\s*/g, "")
+            .trim();
+
+          routineData = JSON.parse(cleaned);
+          break;
+        } catch (err) {
+          retries--;
+          if (retries === 0) {
+            console.error("Gemini routine failed after 2 retries:", err);
+            return NextResponse.json(
+              { error: "Routine generation is temporarily unavailable. Please try again in a moment." },
+              { status: 503 }
+            );
+          }
+          await new Promise((r) => setTimeout(r, 1000 * (3 - retries)));
+        }
       }
     }
 

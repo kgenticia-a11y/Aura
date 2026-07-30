@@ -99,26 +99,50 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const genai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const genai = new GoogleGenAI({
+      apiKey: geminiApiKey,
+      httpOptions: { timeout: 20_000 },
+    });
     const systemPrompt = buildChatPrompt(
       analysis as unknown as Record<string, unknown>
     );
 
-    const response = await genai.models.generateContent({
-      model: GEMINI_MODEL,
-      config: {
-        maxOutputTokens: 300,
-        temperature: 0.5,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-      contents: [
-        { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "I'm ready to answer questions about your skin analysis. What would you like to know?" }] },
-        { role: "user", parts: [{ text: body.message }] },
-      ],
-    });
+    let reply: string | null = null;
+    let retries = 2;
 
-    const reply = response.text?.trim() || "I wasn't able to generate a response. Please try rephrasing your question.";
+    while (retries > 0) {
+      try {
+        const response = await genai.models.generateContent({
+          model: GEMINI_MODEL,
+          config: {
+            maxOutputTokens: 300,
+            temperature: 0.5,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+          contents: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            { role: "model", parts: [{ text: "I'm ready to answer questions about your skin analysis. What would you like to know?" }] },
+            { role: "user", parts: [{ text: body.message }] },
+          ],
+        });
+        reply = response.text?.trim() || null;
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) {
+          console.error("Gemini chat failed after 2 retries:", err);
+          return NextResponse.json(
+            { error: "The assistant is temporarily unavailable. Please try again in a moment." },
+            { status: 503 }
+          );
+        }
+        await new Promise((r) => setTimeout(r, 1000 * (3 - retries)));
+      }
+    }
+
+    if (!reply) {
+      reply = "I wasn't able to generate a response. Please try rephrasing your question.";
+    }
 
     return NextResponse.json({ reply, model: GEMINI_MODEL });
   } catch (err) {

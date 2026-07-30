@@ -26,8 +26,8 @@ export default function CapturePage() {
         return;
       }
 
-      if (blob.size > 10 * 1024 * 1024) {
-        toast.error("Photo is too large (max 10 MB). Please try again.");
+      if (blob.size > 25 * 1024 * 1024) {
+        toast.error("Photo is too large (max 25 MB). Please try again.");
         return;
       }
 

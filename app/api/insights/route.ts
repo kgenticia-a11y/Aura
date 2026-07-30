@@ -115,7 +115,10 @@ export async function GET() {
       });
     }
 
-    const genai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const genai = new GoogleGenAI({
+      apiKey: geminiApiKey,
+      httpOptions: { timeout: 20_000 },
+    });
 
     const prompt = `You are a luxury skincare advisor writing a personalized "Your skin this month" narrative for the user.
 
