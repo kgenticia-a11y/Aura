@@ -361,8 +361,8 @@ export function CameraCapture({ onCapture, loading }: CameraCaptureProps) {
         return;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        setError("Photo must be under 10 MB.");
+      if (file.size > 25 * 1024 * 1024) {
+        setError("Photo must be under 25 MB.");
         return;
       }
 

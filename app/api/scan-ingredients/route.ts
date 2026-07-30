@@ -187,7 +187,10 @@ export async function POST(request: NextRequest) {
         is_skincare: true,
       };
     } else {
-      const genai = new GoogleGenAI({ apiKey: geminiApiKey });
+      const genai = new GoogleGenAI({
+        apiKey: geminiApiKey,
+        httpOptions: { timeout: 30_000 },
+      });
 
       const parts: Array<
         { text: string } | { inlineData: { mimeType: string; data: string } }
