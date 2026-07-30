@@ -273,7 +273,7 @@ export default async function TimelinePage() {
                   {event.type === "analysis" && (
                     <div className="p-4 rounded-xl border border-border/50 bg-card/50">
                       <h3 className="font-semibold mb-1">Skin Analysis</h3>
-                      <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-sm">
                         <span>
                           Score:{" "}
                           <strong className="text-gold">

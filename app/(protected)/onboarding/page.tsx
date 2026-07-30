@@ -336,7 +336,7 @@ function StepSkinBasics({
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium mb-3">Age Range</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {AGE_RANGES.map((range) => (
               <button
                 key={range}
@@ -357,7 +357,7 @@ function StepSkinBasics({
           <label className="block text-sm font-medium mb-3">
             Skin Type (if known)
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {SKIN_TYPES.map((type) => (
               <button
                 key={type}
@@ -510,7 +510,7 @@ function LifestyleQuestion({
   return (
     <div>
       <label className="block text-sm font-medium mb-2">{label}</label>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {options.map((opt) => (
           <button
             key={opt}

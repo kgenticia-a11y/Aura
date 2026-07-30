@@ -422,9 +422,9 @@ export default async function DashboardPage() {
             <TrendingUp className="w-4 h-4 text-gold" />
             Score History
           </h3>
-          <div className="flex items-end gap-2 h-24">
+          <div className="flex items-end gap-2 h-24 overflow-x-auto">
             {[...analyses].reverse().map((a, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div key={i} className="flex-1 min-w-[2.5rem] flex flex-col items-center gap-1">
                 <span className="text-xs text-muted-foreground">
                   {a.health_score}
                 </span>

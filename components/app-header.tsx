@@ -16,9 +16,13 @@ import {
   ScanLine,
   Sun,
   Moon,
+  MoreHorizontal,
+  X,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
+import { useState } from "react";
 
 interface AppHeaderProps {
   user: {
@@ -31,6 +35,7 @@ interface AppHeaderProps {
 export function AppHeader({ user }: AppHeaderProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -128,12 +133,29 @@ export function AppHeader({ user }: AppHeaderProps) {
 
       {/* Mobile bottom nav — fixed to viewport bottom */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-xl safe-bottom">
+        {/* "More" tray — slides up above the bottom bar */}
+        {moreOpen && (
+          <div className="border-b border-border/50 bg-background/95 backdrop-blur-xl px-4 py-3">
+            <div className="grid grid-cols-4 gap-3">
+              <MobileNavLink href="/scan" icon={<ScanLine className="w-5 h-5" />} label="Scan" onClick={() => setMoreOpen(false)} />
+              <MobileNavLink href="/timeline" icon={<Clock className="w-5 h-5" />} label="Timeline" onClick={() => setMoreOpen(false)} />
+              <MobileNavLink href="/pricing" icon={<CreditCard className="w-5 h-5" />} label="Pricing" onClick={() => setMoreOpen(false)} />
+              <MobileNavLink href="/settings" icon={<Settings className="w-5 h-5" />} label="Settings" onClick={() => setMoreOpen(false)} />
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-around py-2 px-2">
           <MobileNavLink href="/dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Home" />
           <MobileNavLink href="/capture" icon={<Camera className="w-5 h-5" />} label="Capture" />
           <MobileNavLink href="/routine" icon={<FlaskConical className="w-5 h-5" />} label="Routine" />
           <MobileNavLink href="/products" icon={<Package className="w-5 h-5" />} label="Products" />
-          <MobileNavLink href="/settings" icon={<Settings className="w-5 h-5" />} label="Settings" />
+          <button
+            onClick={() => setMoreOpen(!moreOpen)}
+            className="flex flex-col items-center gap-0.5 px-2 py-1 text-muted-foreground hover:text-gold transition-colors min-w-0"
+          >
+            {moreOpen ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
+            <span className="text-[10px] font-medium leading-tight">More</span>
+          </button>
         </div>
       </nav>
     </>
@@ -164,14 +186,17 @@ function MobileNavLink({
   href,
   icon,
   label,
+  onClick,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className="flex flex-col items-center gap-0.5 px-2 py-1 text-muted-foreground hover:text-gold transition-colors min-w-0"
     >
       {icon}
