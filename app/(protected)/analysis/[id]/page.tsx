@@ -402,7 +402,7 @@ export default function AnalysisPage() {
       </div>
 
       {/* Skin Type & Hydration */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="p-5 rounded-2xl border border-border/50 bg-card/50">
           <Sparkles className="w-5 h-5 text-gold mb-2" />
           <p className="text-sm text-muted-foreground">Skin Type</p>
@@ -421,7 +421,7 @@ export default function AnalysisPage() {
 
       {/* Environmental Factors */}
       {analysis.environmental_factors && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div className="p-5 rounded-2xl border border-border/50 bg-card/50">
             <Sun className="w-5 h-5 text-amber-400 mb-2" />
             <p className="text-sm text-muted-foreground">Sun Damage</p>
@@ -534,9 +534,9 @@ export default function AnalysisPage() {
                 key={i}
                 className="p-4 rounded-xl border border-border/50 bg-card/50"
               >
-                <div className="flex items-center justify-between mb-1 gap-2">
+                <div className="flex items-start justify-between mb-1 gap-2 flex-wrap">
                   <h3 className="font-medium">{concern.name}</h3>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     {concern.confidence && (
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
