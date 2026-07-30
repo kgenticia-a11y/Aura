@@ -79,6 +79,65 @@ const BRAND_RETAILERS: Record<string, Retailer[]> = {
   ],
   fresh: [{ name: "Sephora", query: "Sephora" }],
   "youth to the people": [{ name: "Sephora", query: "Sephora" }],
+  glossier: [
+    { name: "Sephora", query: "Sephora" },
+  ],
+  skinceuticals: [
+    { name: "Dermstore", query: "Dermstore" },
+    { name: "Nordstrom", query: "Nordstrom" },
+    { name: "Sephora", query: "Sephora" },
+  ],
+  "paula's choice": [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+    { name: "Nordstrom", query: "Nordstrom" },
+  ],
+  cosrx: [
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+    { name: "Target", query: "Target" },
+  ],
+  "sunday riley": [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Nordstrom", query: "Nordstrom" },
+  ],
+  olehenriksen: [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+  ],
+  "supergoop": [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Nordstrom", query: "Nordstrom" },
+  ],
+  farmacy: [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+  ],
+  rhode: [
+    { name: "Sephora", query: "Sephora" },
+  ],
+  laneige: [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Target", query: "Target" },
+  ],
+  lancôme: [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Nordstrom", query: "Nordstrom" },
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+  ],
+  lancome: [
+    { name: "Sephora", query: "Sephora" },
+    { name: "Nordstrom", query: "Nordstrom" },
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+  ],
+  "dear klairs": [
+    { name: "Ulta Beauty", query: "Ulta Beauty" },
+    { name: "Target", query: "Target" },
+  ],
+  "aztec secret": [
+    { name: "Target", query: "Target" },
+    { name: "Walmart", query: "Walmart" },
+    { name: "CVS Pharmacy", query: "CVS Pharmacy" },
+  ],
 };
 
 // Fallbacks by price tier when the brand isn't in the curated map.

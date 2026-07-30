@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { findBudgetAlternatives } from "@/lib/product-dupes";
+import { WhereToBuy } from "@/components/where-to-buy";
 
 interface Product {
   id: string;
@@ -31,6 +32,7 @@ interface Product {
   description: string;
   key_ingredients: string[];
   skin_types: string[];
+  purchase_url: string | null;
 }
 
 interface Review {
@@ -72,7 +74,7 @@ export default function ProductsPage() {
     const [{ data: prods }, { data: revs }, { data: favs }, { data: skinProfile }, { data: latestAnalysis }] = await Promise.all([
       supabase
         .from("products")
-        .select("id, name, brand, category, price_tier, description, key_ingredients, skin_types")
+        .select("id, name, brand, category, price_tier, description, key_ingredients, skin_types, purchase_url")
         .order("category", { ascending: true }),
       supabase
         .from("product_reviews")
@@ -390,6 +392,13 @@ export default function ProductsPage() {
                   {dupesOpenFor === product.id && (
                     <BudgetAlternatives product={product} catalog={products} />
                   )}
+
+                  <WhereToBuy
+                    productName={product.name}
+                    brand={product.brand}
+                    priceTier={product.price_tier}
+                    purchaseUrl={product.purchase_url}
+                  />
                 </div>
 
                 <div className="shrink-0 text-right flex flex-col items-end gap-2">
