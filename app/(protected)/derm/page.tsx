@@ -58,18 +58,16 @@ function DermPageContent() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_premium")
-          .eq("id", user.id)
-          .single();
+        // Premium check and consultation fetch are independent — run in parallel.
+        const [{ data: profile }, res] = await Promise.all([
+          supabase.from("profiles").select("is_premium").eq("id", user.id).single(),
+          fetch("/api/derm-consult"),
+        ]);
         setIsPremium(profile?.is_premium === true);
-      }
-
-      const res = await fetch("/api/derm-consult");
-      if (res.ok) {
-        const data = await res.json();
-        setConsultations(data.consultations || []);
+        if (res.ok) {
+          const data = await res.json();
+          setConsultations(data.consultations || []);
+        }
       }
     } finally {
       setLoading(false);

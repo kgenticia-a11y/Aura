@@ -41,15 +41,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { ok } = await rateLimit(`chat:${user.id}`, 20, 60_000);
+    // Rate limit, premium check, and body parse are independent — run in parallel.
+    const [{ ok }, { isPremium }, rawBodyResult] = await Promise.all([
+      rateLimit(`chat:${user.id}`, 20, 60_000),
+      getPremiumStatus(supabase, user.id),
+      request.json().catch(() => null as unknown),
+    ]);
+
     if (!ok) {
       return NextResponse.json(
         { error: "Too many messages. Please wait a moment." },
         { status: 429 }
       );
     }
-
-    const { isPremium } = await getPremiumStatus(supabase, user.id);
     if (!isPremium) {
       return NextResponse.json(
         {
@@ -60,13 +64,10 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
-
-    let rawBody: unknown;
-    try {
-      rawBody = await request.json();
-    } catch {
+    if (rawBodyResult === null) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+    const rawBody: unknown = rawBodyResult;
 
     const { data: body, error: validationError } = validateBody(
       rawBody,
