@@ -83,18 +83,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Tier-aware daily scan limit
-    const { isPremium } = await getPremiumStatus(supabase, user.id);
-    const dailyScanLimit = isPremium ? PREMIUM_LIMITS.scansPerDay : FREE_LIMITS.scansPerDay;
-
+    // Tier-aware daily scan limit — premium status and today's count are independent.
     const scanToday = new Date();
     scanToday.setHours(0, 0, 0, 0);
 
-    const { count: scanCount } = await supabase
-      .from("ingredient_scans")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .gte("created_at", scanToday.toISOString());
+    const [{ isPremium }, { count: scanCount }] = await Promise.all([
+      getPremiumStatus(supabase, user.id),
+      supabase
+        .from("ingredient_scans")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", scanToday.toISOString()),
+    ]);
+    const dailyScanLimit = isPremium ? PREMIUM_LIMITS.scansPerDay : FREE_LIMITS.scansPerDay;
 
     if (scanCount && scanCount >= dailyScanLimit) {
       const msg = isPremium

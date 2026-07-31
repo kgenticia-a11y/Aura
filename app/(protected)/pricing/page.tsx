@@ -16,17 +16,18 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { FREE_LIMITS, PREMIUM_LIMITS } from "@/lib/premium";
 
 const FREE_FEATURES = [
-  { icon: Camera, label: "2 skin analyses per day" },
-  { icon: ScanLine, label: "5 ingredient scans per day" },
+  { icon: Camera, label: `${FREE_LIMITS.analysesPerDay} skin analyses per day` },
+  { icon: ScanLine, label: `${FREE_LIMITS.scansPerDay} ingredient scans per day` },
   { icon: BarChart3, label: "Health score & basic insights" },
   { icon: Sparkles, label: "AI-generated routines" },
 ];
 
 const PREMIUM_FEATURES = [
-  { icon: Camera, label: "10 skin analyses per day" },
-  { icon: ScanLine, label: "50 ingredient scans per day" },
+  { icon: Camera, label: `${PREMIUM_LIMITS.analysesPerDay} skin analyses per day` },
+  { icon: ScanLine, label: `${PREMIUM_LIMITS.scansPerDay} ingredient scans per day` },
   { icon: Stethoscope, label: "Dermatologist consultations" },
   { icon: MapPin, label: "Nearest-retail store finder" },
   { icon: BarChart3, label: "Skin-age & detailed attributes" },

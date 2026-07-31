@@ -39,6 +39,7 @@ const CONFIDENCE_STYLES: Record<string, string> = {
 
 interface Analysis {
   id: string;
+  user_id: string;
   skin_type: string;
   concerns: Concern[];
   hydration_level: string;
@@ -103,26 +104,21 @@ export default function AnalysisPage() {
     async function loadOrAnalyze() {
       const supabase = createClient();
 
-      // Load premium status
+      // Load premium status and the analysis in parallel — neither depends on the other.
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_premium")
-          .eq("id", currentUser.id)
-          .single();
-        setIsPremium(profile?.is_premium === true);
-      }
 
-      // 1. Treat the route param as an analysis id first (history / timeline
-      //    "View details" links point here). This is what previously failed.
-      const { data: byAnalysisId } = await supabase
-        .from("skin_analyses")
-        .select("*")
-        .eq("id", routeId)
-        .maybeSingle();
+      const [profileResult, { data: byAnalysisId }] = await Promise.all([
+        currentUser
+          ? supabase.from("profiles").select("is_premium").eq("id", currentUser.id).single()
+          : Promise.resolve({ data: null }),
+        // 1. Treat the route param as an analysis id first (history / timeline
+        //    "View details" links point here). This is what previously failed.
+        supabase.from("skin_analyses").select("*").eq("id", routeId).maybeSingle(),
+      ]);
+
+      if (currentUser) setIsPremium(profileResult.data?.is_premium === true);
 
       if (byAnalysisId) {
         setAnalysis(byAnalysisId);
@@ -235,15 +231,10 @@ export default function AnalysisPage() {
       if (!analysis) return;
 
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data } = await supabase
         .from("skin_analyses")
         .select("health_score, created_at")
-        .eq("user_id", user.id)
+        .eq("user_id", analysis.user_id)
         .lt("created_at", analysis.created_at)
         .order("created_at", { ascending: false })
         .limit(1)
