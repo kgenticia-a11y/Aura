@@ -178,6 +178,17 @@ export async function POST(request: NextRequest) {
     }
 
     const imageResponse = await fetch(signedUrlData.signedUrl);
+    if (!imageResponse.ok) {
+      console.error(
+        "Failed to fetch signed photo URL:",
+        imageResponse.status,
+        imageResponse.statusText
+      );
+      return NextResponse.json(
+        { error: "Failed to access photo" },
+        { status: 502 }
+      );
+    }
     const imageBuffer = await imageResponse.arrayBuffer();
 
     // Quality gate: validate the image before spending a Gemini call.
@@ -205,8 +216,11 @@ export async function POST(request: NextRequest) {
     }
 
     const base64Image = Buffer.from(imageBuffer).toString("base64");
-    const contentType = imageResponse.headers.get("content-type") || "image/webp";
-    const mimeType = contentType.startsWith("image/") ? contentType : "image/webp";
+    // Strip any Content-Type parameters (e.g. "image/jpeg; charset=binary") —
+    // Gemini's inlineData.mimeType expects a bare type/subtype.
+    const rawContentType =
+      imageResponse.headers.get("content-type")?.split(";")[0].trim() || "image/webp";
+    const mimeType = rawContentType.startsWith("image/") ? rawContentType : "image/webp";
 
     // Call Gemini Vision API
     const geminiApiKey = process.env.GEMINI_API_KEY;

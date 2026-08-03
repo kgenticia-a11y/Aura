@@ -74,13 +74,18 @@ export async function GET() {
       .eq("user_id", user.id)
       .single();
 
+    const cachedPayload = cached?.payload as Record<string, unknown> | undefined;
     if (
       cached &&
       cached.latest_analysis_id === latest.id &&
-      cached.analysis_count === analyses.length
+      cached.analysis_count === analyses.length &&
+      // Invalidate when the generating model changes so a model upgrade doesn't
+      // keep serving narratives produced by the previous model indefinitely.
+      cachedPayload?.model_version === GEMINI_MODEL
     ) {
+      const { model_version: _modelVersion, ...publicPayload } = cachedPayload;
       return NextResponse.json({
-        ...(cached.payload as Record<string, unknown>),
+        ...publicPayload,
         trend,
         latest_score: latest.health_score,
         previous_score: oldest.health_score,
@@ -170,11 +175,12 @@ Respond ONLY with valid JSON (no markdown):
 
       const parsed = JSON.parse(cleaned);
 
-      // Cache the result
+      // Cache the result. Tag it with the generating model so a future model
+      // change invalidates the entry (see the cache-hit check above).
       await supabase.from("cached_insights").upsert(
         {
           user_id: user.id,
-          payload: parsed,
+          payload: { ...parsed, model_version: GEMINI_MODEL },
           analysis_count: analyses.length,
           latest_analysis_id: latest.id,
         },
