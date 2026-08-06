@@ -8,6 +8,9 @@ import {
 } from "@/lib/validation";
 import { getPremiumStatus } from "@/lib/premium";
 
+// Sentinel for a failed request.json() — distinct from a valid `null` body.
+const PARSE_FAILED = Symbol("parse-failed");
+
 // GET — list the current user's consultation requests.
 // Admins additionally pass ?queue=1 to see the full pending queue.
 export async function GET(request: NextRequest) {
@@ -70,26 +73,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Rate limit, premium check, and body parse are independent — run in parallel.
-  const [{ ok }, { isPremium }, rawBodyResult] = await Promise.all([
-    rateLimit(`derm-consult:${user.id}`, 5, 60_000),
-    getPremiumStatus(supabase, user.id),
-    request.json().catch(() => null as unknown),
-  ]);
-
+  // Rate limit first so abusive traffic is shed before any DB read.
+  const { ok } = await rateLimit(`derm-consult:${user.id}`, 5, 60_000);
   if (!ok) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a minute." },
       { status: 429 }
     );
   }
+
+  // Premium lookup and body parse are independent — resolve concurrently.
+  // A unique sentinel distinguishes a parse failure from a valid `null` body.
+  const [{ isPremium }, rawBodyResult] = await Promise.all([
+    getPremiumStatus(supabase, user.id),
+    request.json().catch(() => PARSE_FAILED),
+  ]);
+
   if (!isPremium) {
     return NextResponse.json(
       { error: "Dermatologist consultations are a Premium feature. Upgrade your plan to access expert reviews.", upgrade: true },
       { status: 403 }
     );
   }
-  if (rawBodyResult === null) {
+  if (rawBodyResult === PARSE_FAILED) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const rawBody: unknown = rawBodyResult;

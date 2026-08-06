@@ -8,6 +8,9 @@ import { getPremiumStatus } from "@/lib/premium";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
+// Sentinel for a failed request.json() — distinct from a valid `null` body.
+const PARSE_FAILED = Symbol("parse-failed");
+
 function buildChatPrompt(analysis: Record<string, unknown>): string {
   return `You are a friendly, knowledgeable skincare advisor for Aura, a luxury AI skincare app. You are answering follow-up questions about a user's skin analysis. NOT medical advice — cosmetic guidance only.
 
@@ -41,19 +44,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Rate limit, premium check, and body parse are independent — run in parallel.
-    const [{ ok }, { isPremium }, rawBodyResult] = await Promise.all([
-      rateLimit(`chat:${user.id}`, 20, 60_000),
-      getPremiumStatus(supabase, user.id),
-      request.json().catch(() => null as unknown),
-    ]);
-
+    // Rate limit first so abusive traffic is shed before any DB read.
+    const { ok } = await rateLimit(`chat:${user.id}`, 20, 60_000);
     if (!ok) {
       return NextResponse.json(
         { error: "Too many messages. Please wait a moment." },
         { status: 429 }
       );
     }
+
+    // Premium lookup and body parse are independent — resolve concurrently.
+    // A unique sentinel distinguishes a parse failure from a valid `null` body.
+    const [{ isPremium }, rawBodyResult] = await Promise.all([
+      getPremiumStatus(supabase, user.id),
+      request.json().catch(() => PARSE_FAILED),
+    ]);
+
     if (!isPremium) {
       return NextResponse.json(
         {
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
-    if (rawBodyResult === null) {
+    if (rawBodyResult === PARSE_FAILED) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     const rawBody: unknown = rawBodyResult;

@@ -39,7 +39,6 @@ const CONFIDENCE_STYLES: Record<string, string> = {
 
 interface Analysis {
   id: string;
-  user_id: string;
   skin_type: string;
   concerns: Concern[];
   hydration_level: string;
@@ -99,6 +98,7 @@ export default function AnalysisPage() {
   const [remediation, setRemediation] = useState<ConcernRemediation[] | null>(null);
   const [remediationLoading, setRemediationLoading] = useState(false);
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadOrAnalyze() {
@@ -108,6 +108,7 @@ export default function AnalysisPage() {
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
+      setUserId(currentUser?.id ?? null);
 
       const [profileResult, { data: byAnalysisId }] = await Promise.all([
         currentUser
@@ -228,13 +229,16 @@ export default function AnalysisPage() {
 
   useEffect(() => {
     async function loadPreviousScore() {
-      if (!analysis) return;
+      // Scope to the authenticated viewer (captured in loadOrAnalyze), not the
+      // record's user_id, so the query identity is the caller's regardless of
+      // how the analysis row was loaded.
+      if (!analysis || !userId) return;
 
       const supabase = createClient();
       const { data } = await supabase
         .from("skin_analyses")
         .select("health_score, created_at")
-        .eq("user_id", analysis.user_id)
+        .eq("user_id", userId)
         .lt("created_at", analysis.created_at)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -244,7 +248,7 @@ export default function AnalysisPage() {
     }
 
     loadPreviousScore();
-  }, [analysis]);
+  }, [analysis, userId]);
 
   if (loading) {
     return (
