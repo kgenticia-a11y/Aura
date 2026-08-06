@@ -57,17 +57,18 @@ function DermPageContent() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
-        // Premium check and consultation fetch are independent — run in parallel.
-        const [{ data: profile }, res] = await Promise.all([
-          supabase.from("profiles").select("is_premium").eq("id", user.id).single(),
-          fetch("/api/derm-consult"),
-        ]);
-        setIsPremium(profile?.is_premium === true);
-        if (res.ok) {
-          const data = await res.json();
-          setConsultations(data.consultations || []);
-        }
+      // Premium check and consultation fetch are independent — run in parallel.
+      // The fetch is unconditional (the route is protected and handles auth itself).
+      const [profileResult, res] = await Promise.all([
+        user
+          ? supabase.from("profiles").select("is_premium").eq("id", user.id).single()
+          : Promise.resolve({ data: null }),
+        fetch("/api/derm-consult"),
+      ]);
+      if (user) setIsPremium(profileResult.data?.is_premium === true);
+      if (res.ok) {
+        const data = await res.json();
+        setConsultations(data.consultations || []);
       }
     } finally {
       setLoading(false);
