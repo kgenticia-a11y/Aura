@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/events";
@@ -50,190 +52,214 @@ interface RoutineProductMatch {
 
 type Tab = "morning" | "evening" | "weekly";
 
-export default function RoutinePage() {
-  const [activeTab, setActiveTab] = useState<Tab>("morning");
-  const [routine, setRoutine] = useState<{
-    id: string;
-    morning_steps: RoutineStep[];
-    evening_steps: RoutineStep[];
-    weekly: RoutineStep[];
-    created_at: string;
-  } | null>(null);
-  const [productMatches, setProductMatches] = useState<RoutineProductMatch[]>([]);
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-  const [conflicts, setConflicts] = useState<IngredientConflict[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [refreshPrompt, setRefreshPrompt] = useState(false);
+interface RoutineData {
+  id: string;
+  morning_steps: RoutineStep[];
+  evening_steps: RoutineStep[];
+  weekly: RoutineStep[];
+  created_at: string;
+}
 
-  useEffect(() => {
-    loadRoutine();
-  }, []);
+interface RoutineBundle {
+  routine: RoutineData;
+  conflicts: IngredientConflict[];
+  productMatches: RoutineProductMatch[];
+}
 
-  useEffect(() => {
-    if (routine) {
-      loadTodayCompletions(routine.id);
-    }
-  }, [routine]);
+// Fetch the active routine plus its ingredient conflicts and matched products.
+async function fetchRoutineBundle(): Promise<RoutineBundle | null> {
+  const supabase = createClient();
 
-  async function loadTodayCompletions(routineId: string) {
-    const supabase = createClient();
-    const today = new Date().toISOString().split("T")[0];
+  const { data: routineData } = await supabase
+    .from("routines")
+    .select("*")
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
 
-    const { data } = await supabase
-      .from("routine_step_completions")
-      .select("step_type, step_index")
-      .eq("routine_id", routineId)
-      .eq("completed_date", today);
+  if (!routineData) return null;
 
-    if (data) {
-      setCompletedSteps(
-        new Set(data.map((c) => `${c.step_type}-${c.step_index}`))
-      );
-    }
-  }
+  const conflicts = detectConflicts(
+    routineData.morning_steps || [],
+    routineData.evening_steps || []
+  );
 
-  async function toggleStep(stepType: string, stepIndex: number) {
-    if (!routine) return;
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+  let productMatches: RoutineProductMatch[] = [];
 
-    const key = `${stepType}-${stepIndex}`;
-    const today = new Date().toISOString().split("T")[0];
-    const isCompleted = completedSteps.has(key);
+  const { data: rp } = await supabase
+    .from("routine_products")
+    .select("step_type, step_index, product_id")
+    .eq("routine_id", routineData.id);
 
-    if (isCompleted) {
-      // Uncheck — delete the completion record
-      await supabase
-        .from("routine_step_completions")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("routine_id", routine.id)
-        .eq("step_type", stepType)
-        .eq("step_index", stepIndex)
-        .eq("completed_date", today);
+  if (rp && rp.length > 0) {
+    const productIds = [...new Set(rp.map((r) => r.product_id))];
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, name, brand, price_tier, description")
+      .in("id", productIds);
 
-      setCompletedSteps((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    } else {
-      // Check — insert
-      await supabase.from("routine_step_completions").insert({
-        user_id: user.id,
-        routine_id: routine.id,
-        step_type: stepType,
-        step_index: stepIndex,
-      });
+    if (products) {
+      const grouped: RoutineProductMatch[] = [];
+      const seen = new Set<string>();
 
-      setCompletedSteps((prev) => new Set(prev).add(key));
-      trackEvent("routine_step_completed", { step_type: stepType, step_index: stepIndex });
-    }
-  }
-
-  async function loadRoutine() {
-    const supabase = createClient();
-
-    // Get active routine
-    const { data: routineData } = await supabase
-      .from("routines")
-      .select("*")
-      .eq("active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (routineData) {
-      setRoutine(routineData);
-
-      // Check for ingredient conflicts
-      const detected = detectConflicts(
-        routineData.morning_steps || [],
-        routineData.evening_steps || []
-      );
-      setConflicts(detected);
-
-      // Load matched products
-      const { data: rp } = await supabase
-        .from("routine_products")
-        .select("step_type, step_index, product_id")
-        .eq("routine_id", routineData.id);
-
-      if (rp && rp.length > 0) {
-        const productIds = [...new Set(rp.map((r) => r.product_id))];
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, name, brand, price_tier, description")
-          .in("id", productIds);
-
-        if (products) {
-          // Group by step
-          const grouped: RoutineProductMatch[] = [];
-          const seen = new Set<string>();
-
-          rp.forEach((match) => {
-            const key = `${match.step_type}-${match.step_index}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              grouped.push({
-                step_type: match.step_type,
-                step_index: match.step_index,
-                products: [],
-              });
-            }
-            const group = grouped.find(
-              (g) =>
-                g.step_type === match.step_type &&
-                g.step_index === match.step_index
-            );
-            const product = products.find((p) => p.id === match.product_id);
-            if (group && product) {
-              group.products.push(product);
-            }
+      rp.forEach((match) => {
+        const key = `${match.step_type}-${match.step_index}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          grouped.push({
+            step_type: match.step_type,
+            step_index: match.step_index,
+            products: [],
           });
-
-          setProductMatches(grouped);
         }
-      }
-    }
+        const group = grouped.find(
+          (g) =>
+            g.step_type === match.step_type && g.step_index === match.step_index
+        );
+        const product = products.find((p) => p.id === match.product_id);
+        if (group && product) {
+          group.products.push(product);
+        }
+      });
 
-    // F5 — arriving from the dashboard "routine may be out of date" nudge.
-    // Read the query param here (in async flow) to avoid a Suspense boundary
-    // and a synchronous setState inside the mount effect.
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("refresh") === "1") setRefreshPrompt(true);
+      productMatches = grouped;
     }
-
-    setLoading(false);
   }
 
-  async function generateRoutine() {
-    setGenerating(true);
+  return { routine: routineData as RoutineData, conflicts, productMatches };
+}
 
-    try {
+// Fetch today's completed step keys ("<type>-<index>") for a routine.
+async function fetchTodayCompletions(routineId: string): Promise<Set<string>> {
+  const supabase = createClient();
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data } = await supabase
+    .from("routine_step_completions")
+    .select("step_type, step_index")
+    .eq("routine_id", routineId)
+    .eq("completed_date", today);
+
+  return new Set((data ?? []).map((c) => `${c.step_type}-${c.step_index}`));
+}
+
+function RoutinePageContent() {
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<Tab>("morning");
+  const [refreshDismissed, setRefreshDismissed] = useState(false);
+
+  const routineQuery = useQuery({
+    queryKey: ["routine"],
+    queryFn: fetchRoutineBundle,
+  });
+
+  const routine = routineQuery.data?.routine ?? null;
+  const conflicts = routineQuery.data?.conflicts ?? [];
+  const productMatches = routineQuery.data?.productMatches ?? [];
+  const loading = routineQuery.isLoading;
+  const routineId = routine?.id;
+
+  const completionsQuery = useQuery({
+    queryKey: ["routine-completions", routineId],
+    queryFn: () => fetchTodayCompletions(routineId!),
+    enabled: !!routineId,
+  });
+  const completedSteps = completionsQuery.data ?? new Set<string>();
+
+  // F5 — arriving from the dashboard "routine may be out of date" nudge.
+  const refreshPrompt =
+    !refreshDismissed && searchParams.get("refresh") === "1";
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
       const response = await fetch("/api/routine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-
       if (!response.ok) {
-        const data = await response.json();
-        toast.error(data.error || "Failed to generate routine");
-        return;
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to generate routine");
       }
-
+    },
+    onSuccess: () => {
       toast.success("New routine generated!");
-      await loadRoutine();
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setGenerating(false);
-    }
+      queryClient.invalidateQueries({ queryKey: ["routine"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
+    },
+  });
+  const generating = generateMutation.isPending;
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({
+      stepType,
+      stepIndex,
+    }: {
+      stepType: string;
+      stepIndex: number;
+    }) => {
+      if (!routineId) return;
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const key = `${stepType}-${stepIndex}`;
+      const today = new Date().toISOString().split("T")[0];
+      const isCompleted = completedSteps.has(key);
+
+      if (isCompleted) {
+        await supabase
+          .from("routine_step_completions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("routine_id", routineId)
+          .eq("step_type", stepType)
+          .eq("step_index", stepIndex)
+          .eq("completed_date", today);
+      } else {
+        await supabase.from("routine_step_completions").insert({
+          user_id: user.id,
+          routine_id: routineId,
+          step_type: stepType,
+          step_index: stepIndex,
+        });
+        trackEvent("routine_step_completed", {
+          step_type: stepType,
+          step_index: stepIndex,
+        });
+      }
+    },
+    // Optimistically flip the step in the cached completions set.
+    onMutate: async ({ stepType, stepIndex }) => {
+      const qk = ["routine-completions", routineId];
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData<Set<string>>(qk);
+      const key = `${stepType}-${stepIndex}`;
+      const next = new Set(prev ?? []);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      queryClient.setQueryData(qk, next);
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) {
+        queryClient.setQueryData(["routine-completions", routineId], ctx.prev);
+      }
+    },
+  });
+
+  function toggleStep(stepType: string, stepIndex: number) {
+    if (!routine) return;
+    toggleMutation.mutate({ stepType, stepIndex });
+  }
+
+  function generateRoutine() {
+    generateMutation.mutate();
   }
 
   function getProductsForStep(stepType: string, stepIndex: number) {
@@ -337,7 +363,7 @@ export default function RoutinePage() {
           </div>
           <Button
             onClick={() => {
-              setRefreshPrompt(false);
+              setRefreshDismissed(true);
               generateRoutine();
             }}
             disabled={generating}
@@ -574,6 +600,20 @@ export default function RoutinePage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function RoutinePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 text-gold animate-spin" />
+        </div>
+      }
+    >
+      <RoutinePageContent />
+    </Suspense>
   );
 }
 
