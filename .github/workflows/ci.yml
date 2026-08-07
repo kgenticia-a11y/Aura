@@ -25,15 +25,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Type-check is the enforced gate — it catches the class of regressions
-      # (wrong types, bad refactors) that broke us before.
+      # Type-check catches the class of type/refactor regressions.
       - name: Type-check
         run: npm run typecheck
 
-      # Lint runs for visibility but is non-blocking for now: the repo carries
-      # pre-existing react-hooks (React Compiler) findings in a few client
-      # pages that need a data-fetching refactor to resolve. Flip this to a hard
-      # gate once those are cleared.
+      # Lint is an enforced gate (0 errors). Warnings are allowed; errors fail.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
