@@ -45,6 +45,31 @@ function sanitizeSkinAge(value: unknown): number | null {
   return rounded;
 }
 
+const SKIN_TYPES = ["oily", "dry", "combination", "normal", "sensitive"] as const;
+const HYDRATION_LEVELS = ["low", "medium", "high"] as const;
+
+// Coerce the model's skin_type / hydration_level to a known enum value, and the
+// health_score into the 1–100 range, so a deviating LLM response can't fail the
+// skin_analyses insert (which would waste the user's daily quota and a Gemini
+// call). raw_response always preserves the original, unmodified output.
+function sanitizeEnum<T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+  fallback: T[number]
+): T[number] {
+  if (typeof value === "string") {
+    const v = value.toLowerCase().trim();
+    if ((allowed as readonly string[]).includes(v)) return v as T[number];
+  }
+  return fallback;
+}
+
+function sanitizeHealthScore(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 50;
+  return Math.min(100, Math.max(1, Math.round(n)));
+}
+
 const ATTRIBUTE_KEYS = ["pores", "firmness", "radiance", "evenness"] as const;
 
 // Keep only the known 0–100 attribute scores; drop the object entirely if none
@@ -412,18 +437,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Normalize the constrained scalar fields before persisting.
+    const skinType = sanitizeEnum(parsed.skin_type, SKIN_TYPES, "normal");
+    const hydrationLevel = sanitizeEnum(
+      parsed.hydration_level,
+      HYDRATION_LEVELS,
+      "medium"
+    );
+    const healthScore = sanitizeHealthScore(parsed.health_score);
+    const skinAge = sanitizeSkinAge(parsed.skin_age);
+    const attributes = sanitizeAttributes(parsed.attributes);
+
     // Save analysis
     const { data: analysis, error: insertError } = await supabase
       .from("skin_analyses")
       .insert({
         user_id: user.id,
         photo_id: photo.id,
-        skin_type: parsed.skin_type,
+        skin_type: skinType,
         concerns: parsed.concerns,
-        hydration_level: parsed.hydration_level,
-        health_score: parsed.health_score,
-        skin_age: sanitizeSkinAge(parsed.skin_age),
-        attributes: sanitizeAttributes(parsed.attributes),
+        hydration_level: hydrationLevel,
+        health_score: healthScore,
+        skin_age: skinAge,
+        attributes,
         environmental_factors: parsed.environmental_factors,
         raw_response: parsed,
         model_version: GEMINI_MODEL,
@@ -448,6 +484,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       analysis_id: analysis.id,
       ...parsed,
+      // Override with the normalized values actually persisted, so the immediate
+      // view matches what the analysis page shows after reloading from the DB.
+      skin_type: skinType,
+      hydration_level: hydrationLevel,
+      health_score: healthScore,
+      skin_age: skinAge,
+      attributes,
       model: GEMINI_MODEL,
     });
   } catch (err) {

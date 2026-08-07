@@ -21,6 +21,15 @@ export async function POST() {
       }
     );
 
+    // Require authentication — this route probes the schema and should not be
+    // callable anonymously.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Check if table already exists by trying to query it
     const { error } = await supabase
       .from("routine_step_completions")
