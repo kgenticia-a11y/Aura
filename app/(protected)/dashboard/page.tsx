@@ -127,10 +127,16 @@ export default async function DashboardPage() {
     ? streak
     : null;
 
+  // Single per-request timestamp reused by the "days since" nudges below. This
+  // is a Server Component (this runs once per request on the server, not in a
+  // client render), so reading the clock here is intentional and safe.
+  // eslint-disable-next-line react-hooks/purity -- server component, per-request time
+  const nowMs = Date.now();
+
   // Days since active routine was generated (for reorder reminder)
   const daysSinceRoutine = activeRoutine
     ? Math.floor(
-        (Date.now() - new Date(activeRoutine.created_at).getTime()) /
+        (nowMs - new Date(activeRoutine.created_at).getTime()) /
           (1000 * 60 * 60 * 24)
       )
     : null;
@@ -165,7 +171,7 @@ export default async function DashboardPage() {
   // Days since last analysis
   const daysSinceAnalysis = latestAnalysis
     ? Math.floor(
-        (Date.now() - new Date(latestAnalysis.created_at).getTime()) /
+        (nowMs - new Date(latestAnalysis.created_at).getTime()) /
           (1000 * 60 * 60 * 24)
       )
     : null;
@@ -209,7 +215,7 @@ export default async function DashboardPage() {
   if (completions && completions.length > 0) {
     const lastDate = new Date(completions[0].completed_date + "T00:00:00");
     daysSinceLastCompletion = Math.floor(
-      (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+      (nowMs - lastDate.getTime()) / (1000 * 60 * 60 * 24)
     );
   }
   const showWelcomeBack =
