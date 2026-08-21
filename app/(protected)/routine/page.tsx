@@ -197,22 +197,22 @@ function RoutinePageContent() {
     mutationFn: async ({
       stepType,
       stepIndex,
+      add,
     }: {
       stepType: string;
       stepIndex: number;
+      add: boolean;
     }) => {
-      if (!routineId) return;
+      if (!routineId) throw new Error("No active routine");
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const key = `${stepType}-${stepIndex}`;
       const today = new Date().toISOString().split("T")[0];
-      const isCompleted = completedSteps.has(key);
 
-      if (isCompleted) {
+      if (!add) {
         await supabase
           .from("routine_step_completions")
           .delete()
@@ -236,7 +236,7 @@ function RoutinePageContent() {
     },
     // Optimistically flip the step in the cached completions set.
     onMutate: async ({ stepType, stepIndex }) => {
-      const qk = ["routine-completions", routineId];
+      const qk = ["routine-completions", routineId] as const;
       await queryClient.cancelQueries({ queryKey: qk });
       const prev = queryClient.getQueryData<Set<string>>(qk);
       const key = `${stepType}-${stepIndex}`;
@@ -244,18 +244,19 @@ function RoutinePageContent() {
       if (next.has(key)) next.delete(key);
       else next.add(key);
       queryClient.setQueryData(qk, next);
-      return { prev };
+      return { prev, qk };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) {
-        queryClient.setQueryData(["routine-completions", routineId], ctx.prev);
+      if (ctx?.prev !== undefined) {
+        queryClient.setQueryData(ctx.qk, ctx.prev);
       }
     },
   });
 
   function toggleStep(stepType: string, stepIndex: number) {
     if (!routine) return;
-    toggleMutation.mutate({ stepType, stepIndex });
+    const add = !completedSteps.has(`${stepType}-${stepIndex}`);
+    toggleMutation.mutate({ stepType, stepIndex, add });
   }
 
   function generateRoutine() {

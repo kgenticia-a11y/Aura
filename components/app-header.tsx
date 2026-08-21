@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AppHeaderProps {
   user: {
@@ -36,10 +37,12 @@ export function AppHeader({ user }: AppHeaderProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    queryClient.clear();
     toast.success("Signed out successfully.");
     router.push("/");
     router.refresh();
