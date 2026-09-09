@@ -41,8 +41,8 @@ export function AppHeader({ user }: AppHeaderProps) {
 
   async function handleSignOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
     queryClient.clear();
+    await supabase.auth.signOut();
     toast.success("Signed out successfully.");
     router.push("/");
     router.refresh();

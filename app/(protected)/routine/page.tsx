@@ -186,6 +186,8 @@ function RoutinePageContent() {
     onSuccess: () => {
       toast.success("New routine generated!");
       queryClient.invalidateQueries({ queryKey: ["routine"] });
+      // Also clear any cached completions so they don't bleed into the new routine.
+      queryClient.removeQueries({ queryKey: ["routine-completions"] });
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -213,7 +215,7 @@ function RoutinePageContent() {
       const today = new Date().toISOString().split("T")[0];
 
       if (!add) {
-        await supabase
+        const { error } = await supabase
           .from("routine_step_completions")
           .delete()
           .eq("user_id", user.id)
@@ -221,13 +223,17 @@ function RoutinePageContent() {
           .eq("step_type", stepType)
           .eq("step_index", stepIndex)
           .eq("completed_date", today);
+        if (error) throw error;
       } else {
-        await supabase.from("routine_step_completions").insert({
-          user_id: user.id,
-          routine_id: routineId,
-          step_type: stepType,
-          step_index: stepIndex,
-        });
+        const { error } = await supabase
+          .from("routine_step_completions")
+          .insert({
+            user_id: user.id,
+            routine_id: routineId,
+            step_type: stepType,
+            step_index: stepIndex,
+          });
+        if (error) throw error;
         trackEvent("routine_step_completed", {
           step_type: stepType,
           step_index: stepIndex,

@@ -32,7 +32,7 @@ async function fetchComparePhotos(): Promise<PhotoWithAnalysis[]> {
 
   if (!photoData || photoData.length === 0) return [];
 
-  return Promise.all(
+  const results = await Promise.allSettled(
     photoData.map(async (p) => {
       const { data: urlData } = await supabase.storage
         .from("selfies")
@@ -55,6 +55,10 @@ async function fetchComparePhotos(): Promise<PhotoWithAnalysis[]> {
       } as PhotoWithAnalysis;
     })
   );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<PhotoWithAnalysis> => r.status === "fulfilled")
+    .map((r) => r.value);
 }
 
 export default function ComparePage() {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/events";
@@ -21,6 +22,7 @@ import Link from "next/link";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -181,7 +183,7 @@ export default function SettingsPage() {
         throw new Error(body.error || "Failed to delete account");
       }
 
-      // Sign out
+      queryClient.clear();
       await supabase.auth.signOut();
 
       toast.success("Account deleted. We're sorry to see you go.");
