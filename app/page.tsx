@@ -1,88 +1,6 @@
 import Link from "next/link";
 import { Sparkles, Shield, Camera, TrendingUp } from "lucide-react";
 import { MotionCard } from "@/components/motion-card";
-import { BookCover } from "@/components/book-cover";
-
-const BOOKS = [
-  {
-    isbn: "0060555661",
-    title: "The Intelligent Investor",
-    author: "Benjamin Graham",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0060555661-L.jpg",
-  },
-  {
-    isbn: "0804139021",
-    title: "Zero to One",
-    author: "Peter Thiel",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0804139021-L.jpg",
-  },
-  {
-    isbn: "0062273205",
-    title: "The Hard Thing About Hard Things",
-    author: "Ben Horowitz",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0062273205-L.jpg",
-  },
-  {
-    isbn: "0735217980",
-    title: "The Man Who Solved The Market",
-    author: "Gregory Zuckerman",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0735217980-L.jpg",
-  },
-  {
-    isbn: "1737475705",
-    title: "$100M Offers",
-    author: "Alex Hormozi",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/1737475705-L.jpg",
-  },
-  {
-    isbn: "1737475736",
-    title: "$100M Leads",
-    author: "Alex Hormozi",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/1737475736-L.jpg",
-  },
-  {
-    isbn: "1585424331",
-    title: "Think and Grow Rich",
-    author: "Napoleon Hill",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/1585424331-L.jpg",
-  },
-  {
-    isbn: "0199291152",
-    title: "The Selfish Gene",
-    author: "Richard Dawkins",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0199291152-L.jpg",
-  },
-  {
-    isbn: "1612680194",
-    title: "Rich Dad Poor Dad",
-    author: "Robert Kiyosaki",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/1612680194-L.jpg",
-  },
-  {
-    isbn: "1982154810",
-    title: "Your Next Five Moves",
-    author: "Patrick Bet-David",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/1982154810-L.jpg",
-  },
-  {
-    isbn: "0857197681",
-    title: "The Psychology of Money",
-    author: "Morgan Housel",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0857197681-L.jpg",
-  },
-  {
-    isbn: "9798432148612",
-    title: "Algorithmic Trading with Python",
-    author: "Aiden Mercel",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/9798432148612-L.jpg",
-  },
-  {
-    isbn: "0735204551",
-    title: "The Power of Your Subconscious Mind",
-    author: "Joseph Murphy",
-    coverUrl: "https://covers.openlibrary.org/b/isbn/0735204551-L.jpg",
-  },
-];
 
 export default function LandingPage() {
   return (
@@ -178,24 +96,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Books Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-card/30">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-4">
-            Books I&apos;ve <span className="text-gradient-gold">Read</span>
-          </h2>
-          <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-14">
-            A curated shelf of books that shaped my thinking across investing, business, and science.
-          </p>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6">
-            {BOOKS.map((book) => (
-              <BookCard key={book.isbn} {...book} />
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="border-t border-border/50 py-8 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -245,25 +145,3 @@ function FeatureCard({
   );
 }
 
-function BookCard({
-  title,
-  author,
-  coverUrl,
-}: {
-  title: string;
-  author: string;
-  coverUrl: string;
-  isbn: string;
-}) {
-  return (
-    <div className="group flex flex-col items-center gap-3">
-      <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden shadow-md ring-1 ring-border/40 group-hover:shadow-xl group-hover:ring-gold/40 transition-all duration-300">
-        <BookCover src={coverUrl} alt={`${title} by ${author}`} />
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-semibold leading-tight line-clamp-2">{title}</p>
-        <p className="text-xs text-muted-foreground mt-1">{author}</p>
-      </div>
-    </div>
-  );
-}
