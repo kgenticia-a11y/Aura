@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, ChevronLeft, ArrowRight, ImageOff } from "lucide-react";
 import Link from "next/link";
@@ -18,71 +19,62 @@ interface PhotoWithAnalysis {
   };
 }
 
+// Fetch analyzed photos with their latest analysis, newest first.
+async function fetchComparePhotos(): Promise<PhotoWithAnalysis[]> {
+  const supabase = createClient();
+
+  const { data: photoData } = await supabase
+    .from("skin_photos")
+    .select("id, storage_path, captured_at, analyzed")
+    .eq("analyzed", true)
+    .order("captured_at", { ascending: false })
+    .limit(20);
+
+  if (!photoData || photoData.length === 0) return [];
+
+  return Promise.all(
+    photoData.map(async (p) => {
+      const { data: urlData } = await supabase.storage
+        .from("selfies")
+        .createSignedUrl(p.storage_path, 3600);
+
+      const { data: analysis } = await supabase
+        .from("skin_analyses")
+        .select("health_score, skin_type, hydration_level, concerns")
+        .eq("photo_id", p.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      return {
+        id: p.id,
+        storage_path: p.storage_path,
+        captured_at: p.captured_at,
+        signed_url: urlData?.signedUrl,
+        analysis: analysis || undefined,
+      } as PhotoWithAnalysis;
+    })
+  );
+}
+
 export default function ComparePage() {
-  const [photos, setPhotos] = useState<PhotoWithAnalysis[]>([]);
   const [beforeId, setBeforeId] = useState<string>("");
   const [afterId, setAfterId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPhotos();
-  }, []);
+  const { data: photos = [], isLoading: loading } = useQuery({
+    queryKey: ["compare-photos"],
+    queryFn: fetchComparePhotos,
+  });
 
-  async function loadPhotos() {
-    const supabase = createClient();
+  // Default selection: newest as "After", oldest as "Before". A user pick
+  // overrides it. Derived (not stored), so there's no state-setting effect
+  // after the fetch.
+  const effectiveAfterId = afterId || photos[0]?.id || "";
+  const effectiveBeforeId =
+    beforeId || (photos.length >= 2 ? photos[photos.length - 1].id : "");
 
-    const { data: photoData } = await supabase
-      .from("skin_photos")
-      .select("id, storage_path, captured_at, analyzed")
-      .eq("analyzed", true)
-      .order("captured_at", { ascending: false })
-      .limit(20);
-
-    if (!photoData || photoData.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    // Get signed URLs and analyses
-    const enriched = await Promise.all(
-      photoData.map(async (p) => {
-        const { data: urlData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(p.storage_path, 3600);
-
-        const { data: analysis } = await supabase
-          .from("skin_analyses")
-          .select("health_score, skin_type, hydration_level, concerns")
-          .eq("photo_id", p.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        return {
-          id: p.id,
-          storage_path: p.storage_path,
-          captured_at: p.captured_at,
-          signed_url: urlData?.signedUrl,
-          analysis: analysis || undefined,
-        } as PhotoWithAnalysis;
-      })
-    );
-
-    setPhotos(enriched);
-
-    // Auto-select most recent and oldest by default
-    if (enriched.length >= 2) {
-      setAfterId(enriched[0].id);
-      setBeforeId(enriched[enriched.length - 1].id);
-    } else if (enriched.length === 1) {
-      setAfterId(enriched[0].id);
-    }
-
-    setLoading(false);
-  }
-
-  const before = photos.find((p) => p.id === beforeId);
-  const after = photos.find((p) => p.id === afterId);
+  const before = photos.find((p) => p.id === effectiveBeforeId);
+  const after = photos.find((p) => p.id === effectiveAfterId);
 
   if (loading) {
     return (
@@ -133,13 +125,13 @@ export default function ComparePage() {
       <div className="grid grid-cols-2 gap-3 mb-6">
         <PhotoSelector
           label="Before"
-          value={beforeId}
+          value={effectiveBeforeId}
           onChange={setBeforeId}
           photos={photos}
         />
         <PhotoSelector
           label="After"
-          value={afterId}
+          value={effectiveAfterId}
           onChange={setAfterId}
           photos={photos}
         />
