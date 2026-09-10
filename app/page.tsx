@@ -245,25 +245,3 @@ function FeatureCard({
   );
 }
 
-function BookCard({
-  title,
-  author,
-  coverUrl,
-}: {
-  title: string;
-  author: string;
-  coverUrl: string;
-  isbn: string;
-}) {
-  return (
-    <div className="group flex flex-col items-center gap-3">
-      <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden shadow-md ring-1 ring-border/40 group-hover:shadow-xl group-hover:ring-gold/40 transition-all duration-300">
-        <BookCover src={coverUrl} alt={`${title} by ${author}`} />
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-semibold leading-tight line-clamp-2">{title}</p>
-        <p className="text-xs text-muted-foreground mt-1">{author}</p>
-      </div>
-    </div>
-  );
-}
